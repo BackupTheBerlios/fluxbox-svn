@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ToolbarHandler.cc,v 1.3.2.2 2003/04/07 10:33:39 fluxgen Exp $
+// $Id: ToolbarHandler.cc,v 1.3.2.3 2003/04/11 13:50:31 fluxgen Exp $
 
 /**
  * The ToolbarHandler class acts as a rough interface to the toolbar.
@@ -45,7 +45,9 @@ namespace {
 
 class ToolbarModeMenuItem : public FbTk::MenuItem {
 public:
-    ToolbarModeMenuItem(const char *label, ToolbarHandler &handler, ToolbarHandler::ToolbarMode mode, FbTk::RefCount<FbTk::Command> &cmd):
+    ToolbarModeMenuItem(const char *label, ToolbarHandler &handler, 
+                        ToolbarHandler::ToolbarMode mode, 
+                        FbTk::RefCount<FbTk::Command> &cmd):
         FbTk::MenuItem(label, cmd), m_handler(handler), m_mode(mode) {
     }
     bool isEnabled() const { return m_handler.getMode() != m_mode; }
@@ -287,7 +289,7 @@ void ToolbarHandler::updateWorkspace(FluxboxWindow &win) {
     if (!(m_mode == WORKSPACE || (m_mode == WORKSPACEICONS && win.isIconic()))) return;
     
     if (win.getWorkspaceNumber() == m_current_workspace) {
-        // TODO
+        //!! TODO
         // this shouldn't be needed, but is until Workspaces get fixed so that
         // you only move between them, you don't 'add' and 'remove'
         // alternatively, fix reassocaiteWindow so that the iconic stuff is
