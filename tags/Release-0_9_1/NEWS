@@ -1,0 +1,15 @@
+News in 0.9.1:
+   * MRU (Most Recently Used) window cycling
+   * Embedded tabs in titlebar
+   * Toolbar modes
+     * Off (no toolbar visible)
+	 * None (no icons and no windows in toolbar)
+	 * Icons (icons on all workspaces)
+	 * Workspace Icons (icons on current workspace)
+	 * Workspace (both icons and windows on current workspace)
+	 * All Windows (both icons and windows on all workspaces)
+Bug fixes: 
+   * [ 721107 ] Window resizing problem in a mozilla/phoenix window
+   * Toolbar and Slit now properly save layer when changed
+
+See ChangeLog for more details
