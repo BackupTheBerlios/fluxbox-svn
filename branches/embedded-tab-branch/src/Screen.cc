@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118.2.3 2003/04/09 08:46:19 fluxgen Exp $
+// $Id: Screen.cc,v 1.118.2.4 2003/04/09 15:59:48 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -112,6 +112,7 @@
 #include <iostream>
 #include <memory>
 #include <algorithm>
+#include <functional>
 
 using namespace std;
 
@@ -776,19 +777,14 @@ void BScreen::reconfigure() {
 #endif // SLIT
 
     //reconfigure workspaces
-    Workspaces::iterator wit = workspacesList.begin();
-    Workspaces::iterator wit_end = workspacesList.end();
-    for (; wit != wit_end; ++wit) {
-        (*wit)->reconfigure();
-    }
+    for_each(workspacesList.begin(),
+             workspacesList.end(),
+             mem_fun(&Workspace::reconfigure));
 
     //reconfigure Icons
-    Icons::iterator iit = iconList.begin();
-    Icons::iterator iit_end = iconList.end();
-    for (; iit != iit_end; ++iit) {
-        if ((*iit)->validateClient())
-            (*iit)->reconfigure();
-    }
+    for_each(iconList.begin(),
+             iconList.end(),
+             mem_fun(&FluxboxWindow::reconfigure));
 
     image_control->timeout();
 }
@@ -823,16 +819,13 @@ void BScreen::removeIcon(FluxboxWindow *w) {
     if (! w)
         return;
 	
-    {
-	Icons::iterator it = iconList.begin();
-	Icons::iterator it_end = iconList.end();
-	for (; it != it_end; ++it) {
-            if (*it == w) {
-                iconList.erase(it);
-                break;
-            }
-        }
-    }
+
+    Icons::iterator erase_it = remove_if(iconList.begin(),
+                                         iconList.end(),
+                                         bind2nd(equal_to<FluxboxWindow *>(), w));
+    if (erase_it != iconList.end())
+        iconList.erase(erase_it);
+
     
     Icons::iterator it = iconList.begin();
     Icons::iterator it_end = iconList.end();
@@ -844,9 +837,8 @@ void BScreen::removeIcon(FluxboxWindow *w) {
 void BScreen::removeWindow(FluxboxWindow *win) {
     Workspaces::iterator it = workspacesList.begin();
     Workspaces::iterator it_end = workspacesList.end();
-    for (; it != it_end; ++it) {
+    for (; it != it_end; ++it)
         (*it)->removeWindow(win);
-    }
 }
 
 FluxboxWindow *BScreen::getIcon(unsigned int index) {
@@ -1048,26 +1040,18 @@ void BScreen::removeNetizen(Window w) {
 
 void BScreen::updateNetizenCurrentWorkspace() {
     m_currentworkspace_sig.notify();
-	
-    Netizens::iterator it = netizenList.begin();
-    Netizens::iterator it_end = netizenList.end();
-    for (; it != it_end; ++it) {
-        (*it)->sendCurrentWorkspace();
-    }
-
+    for_each(netizenList.begin(),
+             netizenList.end(),
+             mem_fun(&Netizen::sendCurrentWorkspace));
 }
 
 
 void BScreen::updateNetizenWorkspaceCount() {
-
-    Netizens::iterator it = netizenList.begin();
-    Netizens::iterator it_end = netizenList.end();
-    for (; it != it_end; ++it) {
-        (*it)->sendWorkspaceCount();
-    }
+    for_each(netizenList.begin(),
+             netizenList.end(),
+             mem_fun(&Netizen::sendWorkspaceCount));
 
     m_workspacecount_sig.notify();	
-	
 }
 
 
@@ -1919,17 +1903,13 @@ void BScreen::createStyleMenu(FbTk::Menu &menu,
 }
 
 void BScreen::shutdown() {
-    XSelectInput(getBaseDisplay()->getXDisplay(), getRootWindow(), NoEventMask);
-    XSync(getBaseDisplay()->getXDisplay(), False);
+    Display *disp = FbTk::App::instance()->display();
+    XSelectInput(disp, getRootWindow(), NoEventMask);
+    XSync(disp, False);
 
-
-    Workspaces::iterator it = workspacesList.begin();
-    Workspaces::iterator it_end = workspacesList.end();
-    for (; it != it_end; ++it) {
-        (*it)->shutdown();
-    }
-
-
+    for_each(workspacesList.begin(),
+             workspacesList.end(),
+             mem_fun(&Workspace::shutdown));
 
     while (!iconList.empty()) {
         iconList.back()->restore(true); // restore with remap
