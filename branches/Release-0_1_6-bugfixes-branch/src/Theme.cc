@@ -41,7 +41,7 @@
 //  FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 //  DEALINGS IN THE SOFTWARE.
 
-// $Id: Theme.cc,v 1.14 2002/01/11 10:43:55 fluxgen Exp $
+// $Id: Theme.cc,v 1.14.2.1 2002/01/12 16:34:40 fluxgen Exp $
 
 #ifndef   _GNU_SOURCE
 #define   _GNU_SOURCE
@@ -678,19 +678,24 @@ void Theme::loadRootCommand() {
 	
 	} else if (XrmGetResource(m_database, "rootCommand",
 										 "RootCommand", &value_type, &value)) {
-	#ifndef		__EMX__
+		#ifndef		__EMX__
+		
 		char tmpstring[256]; //to hold m_screennum
 		tmpstring[0]=0;
 		sprintf(tmpstring, "%d", m_screennum);
 		string displaystring("DISPLAY=");
 		displaystring.append(DisplayString(m_display));
 		displaystring.append(tmpstring); // append m_screennum				
+	
+		#ifndef DEBUG
 		cerr<<__FILE__<<"("<<__LINE__<<"): displaystring="<<displaystring.c_str()<<endl;		 		
-
+		#endif
+	
 		bexec(value.addr, const_cast<char *>(displaystring.c_str()));
-	#else //	 __EMX__
+	
+		#else //	 __EMX__
 		spawnlp(P_NOWAIT, "cmd.exe", "cmd.exe", "/c", value.addr, NULL);
-	#endif // !__EMX__
+		#endif // !__EMX__
 
 	#ifdef DEBUG
 		fprintf(stderr, "rootcommand:%s\n", value.addr); 
