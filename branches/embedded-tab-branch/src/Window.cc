@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.9 2003/04/12 11:06:44 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.10 2003/04/12 21:41:53 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -2182,7 +2182,7 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
 void FluxboxWindow::shapeEvent(XShapeEvent *) { }
 
 void FluxboxWindow::buttonReleaseEvent(XButtonEvent &re) {
-    m_frame.buttonReleaseEvent(re); // let the frame handle the event first
+
 
     if (isMoving())
         stopMoving();		
@@ -2191,8 +2191,10 @@ void FluxboxWindow::buttonReleaseEvent(XButtonEvent &re) {
     else if (re.window == m_frame.window()) {
         if (re.button == 2 && re.state == Mod1Mask)
             XUngrabPointer(display, CurrentTime);
+        m_frame.buttonReleaseEvent(re);
+    } else {
+        m_frame.buttonReleaseEvent(re);
     }
-
 }
 
 
