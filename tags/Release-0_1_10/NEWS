@@ -1,0 +1,13 @@
+News in 0.1.10:
+   * slit order, you can now order your apps in the slit, 
+     see documentation for more details
+   * xsri target in bsetbg
+   * language support in fluxbox-generate_menu: sv_SE, nl_NL, fi_FI, ru_RU
+Bug fixes:
+   * [ 562882 ] "bbpager in slit doesn't work correctly".
+   * [ 562713 ] "incorrect listings in workspace menu".    
+   * [ 554646 ] "Dialog boxes have tabs briefly"
+   * [ 566277 ] "xine fullscreen causes hard X lockup"
+   * [ 554218 ] "windows have wrong resizeableness"
+
+See ChangeLog for details

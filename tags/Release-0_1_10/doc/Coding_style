@@ -1,0 +1,58 @@
+The coding style is almost the same as i blackbox.
+Instead of 2 spaces there is tab.
+Use a tab size of 2 or 4 and you will be fine.
+
+if-statements:
+
+	if ( stuff ) 
+		function(stuff, more stuff, 
+			more, even more);
+	else
+		morefunction( stuff, more stuff
+			stuff, 
+			stuff,
+			stuff);
+			
+if the functionline needs to be split up, like above, right after an if-statement
+use { and }, so its clear when the if-statement ends.
+It should look like this
+
+	if ( stuff ) {
+		function(stuff, more stuff, 
+			more, even more);
+	} else {
+		morefunction( stuff, more stuff
+			stuff, 
+			stuff,
+			stuff);
+	}
+	
+If a line need to be splited in an if-statement then it should use two 
+tab for indent next row in if-statement like this:
+
+	if ( longline && longline && longling &&
+			longline && longline && longline)
+		funktion();
+
+The include guards:
+FILENAME_HH
+
+
+Function comments:
+//------------ function name --------
+// This do that and that
+// Returns this on success else
+// this on failure.
+// TODO: if there is something to do.
+//-----------------------------------
+type classname::function(...) {
+
+}
+
+
+enums must be in uppercase letters and not in file scope:
+enum {WHITE, RED, BLUE};
+
+Class data members are prefixed by m_ 
+Class member function will be organized accordning to creator, 
+manipulator and accessor categories.
