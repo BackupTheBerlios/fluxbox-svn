@@ -1,0 +1,72 @@
+News in 0.9.5:
+    * New theme items:
+        Menu theme changes:
+        * menu.selected.pixmap
+        * menu.unselected.pixmap
+        * menu.submenu.pixmap
+        Window theme changes:
+        * window.title.height 
+        Toolbar theme changes:
+        * toolbar.height: <pixel size>
+        * toolbar.clock: <texture>
+        * toolbar.clock.pixmap: <filename>
+        * toolbar.clock.color: <color>
+        * toolbar.clock.colorTo: <color>
+        * toolbar.clock.textColor: <color>
+        * toolbar.clock.font: <font>
+
+        * toolbar.workspace: <texture>
+        * toolbar.workspace.pixmap: <filename>
+        * toolbar.workspace.color: <color>
+        * toolbar.workspace.colorTo: <color>
+        * toolbar.workspace.textColor: <color>
+        * toolbar.workspace.font: <font>
+        This is for an empty iconbar: 
+        * toolbar.iconbar.empty: <texture>
+        * toolbar.iconbar.empty.pixmap: <filename>
+        * toolbar.iconbar.empty.color: <color>
+        * toolbar.iconbar.empty.colorTo: <color>
+
+        Focused window in iconbar:
+        * toolbar.iconbar.focused: <texture>
+        * toolbar.iconbar.focused.pixmap: <filename>
+        * toolbar.iconbar.focused.color: <color>
+        * toolbar.iconbar.focused.colorTo: <color>
+        * toolbar.iconbar.focused.textColor: <color>
+        * toolbar.iconbar.focused.font: <font>
+        And the same for .unfocused:
+        * toolbar.iconbar.unfocused: <texture>
+          etc.    
+    * New actions:
+        * resizevertical
+        * resizehorizontal
+        * setworkspacename
+        * movetableft
+        * movetabright
+    * Set workspace name tool
+    * Search path resource for images
+        * session.screen<num>.imageSearchPath
+        This is a list separated by , or space
+        example: session.screen0.imageSearchPath: ~/.fluxbox/pixmaps, /usr/share/fluxbox/pixmaps 
+    * New height resource for toolbar
+        * session.screen<num>.toolbar.height
+        This will override the style's font height
+    * Support for system tray _NET_SYSTEM_TRAY
+        Applications that support this will show their icon
+        in the toolbar next to the clock.
+    * New texture type: Tiled
+        This will just affect pixmap loaded from file, and it will not scale them.
+    * Added MoveTabLeft and MoveTabRight commands 
+    
+Bug fixes: 
+    * Fixed Transparency bug in menus
+    * Fixed so shaped windows like xmms wont get round corners
+    * Fixed shape bug when switching between shaped themes and non shaped
+    * Fixed kde dockapp bug
+    * FbRun works properly on multiple screens
+    * Fixed pesky crash and phantom icons
+    * Fixed aspects of focus and raising, including transients
+    * Fixed java bug, slow windows
+    * Fixed 8 bpp crash
+
+See ChangeLog for more details
