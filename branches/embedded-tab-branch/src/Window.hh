@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.hh,v 1.53.2.2 2003/04/09 09:01:07 fluxgen Exp $
+// $Id: Window.hh,v 1.53.2.3 2003/04/11 13:35:30 fluxgen Exp $
 
 #ifndef	 WINDOW_HH
 #define	 WINDOW_HH
@@ -159,7 +159,7 @@ public:
 
     void reconfigure();
     void installColormap(bool);
-    void restore(WinClient &client, bool remap);
+    void restore(WinClient *client, bool remap);
     void restore(bool remap);
     /// move frame to x, y
     void move(int x, int y);
