@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.hh,v 1.53 2003/03/22 05:13:08 rathnor Exp $
+// $Id: Window.hh,v 1.53.2.1 2003/04/07 10:00:55 fluxgen Exp $
 
 #ifndef	 WINDOW_HH
 #define	 WINDOW_HH
@@ -49,6 +49,7 @@
 
 #define PropMwmHintsElements	3
 
+class WinClient;
 class Tab;
 class FbWinFrameTheme;
 class BScreen;
@@ -98,13 +99,26 @@ public:
         MwmDecorMaximize    = (1l << 6)  /// maximize
     };
 
+    /// create a window from a client
+    FluxboxWindow(WinClient &client, BScreen &scr,
+                  FbWinFrameTheme &tm,
+                  FbTk::MenuTheme &menutheme,
+                  FbTk::XLayer &layer);
+
     /// create fluxbox window with parent win and screen connection
-    FluxboxWindow(Window win, BScreen *scr, 
-                  int screen_num, FbTk::ImageControl &imgctrl, FbWinFrameTheme &tm,
+    FluxboxWindow(Window win, BScreen &scr, 
+                  FbWinFrameTheme &tm,
                   FbTk::MenuTheme &menutheme,
                   FbTk::XLayer &layer);
     virtual ~FluxboxWindow();
 
+
+    void attachClient(WinClient &client);
+    bool detachClient(WinClient &client);
+    bool removeClient(WinClient &client);
+    WinClient *findClient(Window win);
+    void nextClient();
+    void prevClient();
 
     void setWindowNumber(int n) { window_number = n; }
       
@@ -141,6 +155,7 @@ public:
 
     void reconfigure();
     void installColormap(bool);
+    void restore(WinClient &client, bool remap);
     void restore(bool remap);
     /// move frame to x, y
     void move(int x, int y);
@@ -190,41 +205,45 @@ public:
        @name accessors		
     */
     //@{
-    bool isTransient() const { return ((client.transient_for) ? true : false); }
-    bool hasTransient() const { return ((client.transients.size()) ? true : false); }
-    bool isManaged() const { return m_managed; }
-    bool isFocused() const { return focused; }
-    bool isVisible() const { return visible; }
-    bool isIconic() const { return iconic; }
-    bool isShaded() const { return shaded; }
-    bool isMaximized() const { return maximized; }
-    bool isIconifiable() const { return functions.iconify; }
-    bool isMaximizable() const { return functions.maximize; }
-    bool isResizable() const { return functions.resize; }
-    bool isClosable() const { return functions.close; }
-    bool isStuck() const { return stuck; }
-    bool hasTitlebar() const { return decorations.titlebar; }
-    bool hasTab() const { return (tab!=0 ? true : false); }
-    bool isMoving() const { return moving; }
-    bool isResizing() const { return resizing; }
+    inline bool isTransient() const;
+    inline bool hasTransient() const;
+    inline bool isManaged() const { return m_managed; }
+    inline bool isFocused() const { return focused; }
+    inline bool isVisible() const { return visible; }
+    inline bool isIconic() const { return iconic; }
+    inline bool isShaded() const { return shaded; }
+    inline bool isMaximized() const { return maximized; }
+    inline bool isIconifiable() const { return functions.iconify; }
+    inline bool isMaximizable() const { return functions.maximize; }
+    inline bool isResizable() const { return functions.resize; }
+    inline bool isClosable() const { return functions.close; }
+    inline bool isStuck() const { return stuck; }
+    inline bool hasTitlebar() const { return decorations.titlebar; }
+    inline bool hasTab() const { return (tab!=0 ? true : false); }
+    inline bool isMoving() const { return moving; }
+    inline bool isResizing() const { return resizing; }
     bool isGroupable() const;
+    inline int numClients() const { return m_clientlist.size(); }
+    inline std::list<WinClient *> &clientList() { return m_clientlist; }
+    inline const std::list<WinClient *> &clientList() const { return m_clientlist; }
+    inline WinClient &winClient() { return *m_client; }
+    inline const WinClient &winClient() const { return *m_client; }
 
-    const BScreen *getScreen() const { return screen; }
-    BScreen *getScreen() { return screen; }
+    inline const BScreen &getScreen() const { return screen; }
+    inline BScreen &getScreen() { return screen; }
 
-    const FbTk::XLayerItem &getLayerItem() const { return m_layeritem; }
-    FbTk::XLayerItem &getLayerItem() { return m_layeritem; }
+    inline const FbTk::XLayerItem &getLayerItem() const { return m_layeritem; }
+    inline FbTk::XLayerItem &getLayerItem() { return m_layeritem; }
 
-    const Tab *getTab() const { return tab; }
-    Tab *getTab() { return tab; }
+    inline const Tab *getTab() const { return tab; }
+    inline Tab *getTab() { return tab; }
 
-    const std::list<FluxboxWindow *> &getTransients() const { return client.transients; } 
-    std::list<FluxboxWindow *> &getTransients() { return client.transients; } 	
-
-    const FluxboxWindow *getTransientFor() const { return client.transient_for; }
-    FluxboxWindow *getTransientFor() { return client.transient_for; }
+    const std::list<FluxboxWindow *> &getTransients() const;
+    std::list<FluxboxWindow *> &getTransients();
+    const FluxboxWindow *getTransientFor() const;
+    FluxboxWindow *getTransientFor();
 	
-    Window getClientWindow() const { return client.window; }
+    Window getClientWindow() const;
 
     FbTk::FbWindow &getFbWindow() { return m_frame.window(); }
     const FbTk::FbWindow &getFbWindow() const { return m_frame.window(); }
@@ -232,28 +251,28 @@ public:
     FbTk::Menu &getWindowmenu() { return m_windowmenu; }
     const FbTk::Menu &getWindowmenu() const { return m_windowmenu; }
 
-    FbTk::Menu *getLayermenu() { return m_layermenu; }
-    const FbTk::Menu *getLayermenu() const { return m_layermenu; }
+    FbTk::Menu &getLayermenu() { return m_layermenu; }
+    const FbTk::Menu &getLayermenu() const { return m_layermenu; }
 	
-    const std::string &getTitle() const { return client.title; }
-    const std::string &getIconTitle() const { return client.icon_title; }
+    const std::string &getTitle() const;
+    const std::string &getIconTitle() const;
     int getXFrame() const { return m_frame.x(); }
     int getYFrame() const { return m_frame.y(); }
-    int getXClient() const { return client.x; }
-    int getYClient() const { return client.y; }
+    int getXClient() const;
+    int getYClient() const;
     unsigned int getWorkspaceNumber() const { return workspace_number; }
     int getWindowNumber() const { return window_number; }
     int getLayerNum() const { return m_layernum; }
     void setLayerNum(int layernum);
     unsigned int getWidth() const { return m_frame.width(); }
     unsigned int getHeight() const { return m_frame.height(); }
-    unsigned int getClientHeight() const { return client.height; }
-    unsigned int getClientWidth() const { return client.width; }
+    unsigned int getClientHeight() const;
+    unsigned int getClientWidth() const;
     unsigned int getTitleHeight() const { return m_frame.titleHeight(); }
     const std::string &className() const { return m_class_name; }
     const std::string &instanceName() const { return m_instance_name; }
     bool isLowerTab() const;
-    int initialState() const { return client.initial_state; }
+    int initialState() const;
 
     FbWinFrame &frame() { return m_frame; }
     const FbWinFrame &frame() const { return m_frame; }
@@ -288,13 +307,7 @@ public:
     };
 
 private:
-    // this structure only contains 3 elements... the Motif 2.0 structure contains
-    // 5... we only need the first 3... so that is all we will define
-    typedef struct MwmHints {
-        unsigned long flags;       // Motif wm flags
-        unsigned long functions;   // Motif wm functions
-        unsigned long decorations; // Motif wm decorations
-    } MwmHints;
+    void init();
 
     void grabButtons();
 	
@@ -341,14 +354,14 @@ private:
     bool moving, resizing, shaded, maximized, visible, iconic, transient,
         focused, stuck, modal, send_focus_message, m_managed;
 
-    BScreen *screen; /// screen on which this window exist
+    BScreen &screen; /// screen on which this window exist
     FbTk::Timer timer;
-    Display *display; /// display connection (obsolete by FbTk)
+    Display *display; /// display connection
     BaseDisplay::BlackboxAttributes blackbox_attrib;
 
     Time lastButtonPressTime;
     FbTk::Menu m_windowmenu;
-    LayerMenu<FluxboxWindow> *m_layermenu;
+    LayerMenu<FluxboxWindow> m_layermenu;
     
     timeval lastFocusTime;
 	
@@ -363,24 +376,11 @@ private:
     unsigned long current_state;
 
     Decoration old_decoration;
-
-    struct _client {
-        FluxboxWindow *transient_for; // which window are we a transient for?
-        std::list<FluxboxWindow *>	transients;  // which windows are our transients?
-        Window window, window_group;
-
-        std::string title, icon_title;
-        int x, y, old_bw;
-        unsigned int width, height, title_text_w,
-            min_width, min_height, max_width, max_height, width_inc, height_inc,
-            min_aspect_x, min_aspect_y, max_aspect_x, max_aspect_y,
-            base_width, base_height, win_gravity;
-        unsigned long initial_state, normal_hint_flags, wm_hint_flags;
-
-        MwmHints *mwm_hint;
-        BaseDisplay::BlackboxHints *blackbox_hint;
-		
-    } client;
+    typedef std::list<WinClient *> ClientList;
+    ClientList m_clientlist;
+    WinClient *m_client;
+    // just temporary solution
+    friend class WinClient;
 
     struct _decorations {
         bool titlebar, handle, border, iconify,
