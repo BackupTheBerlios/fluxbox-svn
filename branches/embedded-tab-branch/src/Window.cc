@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.8 2003/04/12 09:59:43 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.9 2003/04/12 11:06:44 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -246,7 +246,6 @@ FluxboxWindow::~FluxboxWindow() {
     Client2ButtonMap::iterator it = m_labelbuttons.begin();
     Client2ButtonMap::iterator it_end = m_labelbuttons.end();
     for (; it != it_end; ++it) {
-        //        evm.remove((*it)->window());
         m_frame.removeLabelButton(*(*it).second);
         delete (*it).second;
     }
@@ -469,50 +468,87 @@ void FluxboxWindow::attachClient(WinClient &client) {
 #endif // DEBUG    
     // reparent client win to this frame 
     m_frame.setClientWindow(client);
-    // create a labelbutton for this client and associate it with the pointer
-    TextButton *btn = new TextButton(m_frame.label(), 
-                                     m_frame.theme().font(),
-                                     client.title());
-    m_labelbuttons[&client] = btn;
-    m_frame.addLabelButton(*btn);
-    btn->show();
-    FbTk::EventManager &evm = *FbTk::EventManager::instance();
-    // we need motion notify so we mask it
-    btn->window().setEventMask(ExposureMask | ButtonPressMask | ButtonReleaseMask | 
-                               ButtonMotionMask);
+
+    if (client.fbwindow() != 0) {
+        FluxboxWindow *old_win = client.fbwindow(); // store old window
+
+        Fluxbox *fb = Fluxbox::instance();
+        // make sure we set new window search for each client
+        ClientList::iterator client_it = old_win->clientList().begin();
+        ClientList::iterator client_it_end = old_win->clientList().end();
+        for (; client_it != client_it_end; ++client_it) {
+            fb->saveWindowSearch((*client_it)->window(), this);
+            // reparent window to this
+            m_frame.setClientWindow(*(*client_it));           
+            (*client_it)->m_win = this;
+            // create a labelbutton for this client and associate it with the pointer
+            TextButton *btn = new TextButton(m_frame.label(), 
+                                             m_frame.theme().font(),
+                                             (*client_it)->title());
+            m_labelbuttons[(*client_it)] = btn;
+            m_frame.addLabelButton(*btn);
+            btn->show();
+            FbTk::EventManager &evm = *FbTk::EventManager::instance();
+            // we need motion notify so we mask it
+            btn->window().setEventMask(ExposureMask | ButtonPressMask | ButtonReleaseMask | 
+                                       ButtonMotionMask);
 
 
-    if (client.m_win != 0) {
+            FbTk::RefCount<FbTk::Command> set_client_cmd(new SetClientCmd(*(*client_it)));
+            btn->setOnClick(set_client_cmd);
+            evm.add(*this, btn->window()); // we take care of button events for this
+
+            // update transients in client to have this as transient_for
+            WinClient::TransientList::iterator trans_it = (*client_it)->transientList().begin();
+            WinClient::TransientList::iterator trans_it_end = (*client_it)->transientList().end();
+            for (; trans_it != trans_it_end; ++trans_it) {
+                (*trans_it)->m_client->transient_for = this;
+            }
+        }
+
         // add client and move over all attached clients 
         // from the old window to this list
-        m_clientlist.splice(m_clientlist.end(), client.m_win->m_clientlist);   
-
-        FluxboxWindow *old_win = client.m_win;
-        client.m_win = 0;
+        m_clientlist.splice(m_clientlist.end(), old_win->m_clientlist);           
+        
         old_win->m_client = 0;
         delete old_win;
+        
+    } else {
+        // create a labelbutton for this client and associate it with the pointer
+        TextButton *btn = new TextButton(m_frame.label(), 
+                                         m_frame.theme().font(),
+                                         client.title());
+        m_labelbuttons[&client] = btn;
+        m_frame.addLabelButton(*btn);
+        btn->show();
+        FbTk::EventManager &evm = *FbTk::EventManager::instance();
+        // we need motion notify so we mask it
+        btn->window().setEventMask(ExposureMask | ButtonPressMask | ButtonReleaseMask | 
+                                   ButtonMotionMask);
 
+
+        FbTk::RefCount<FbTk::Command> set_client_cmd(new SetClientCmd(client));
+        btn->setOnClick(set_client_cmd);
+        evm.add(*this, btn->window()); // we take care of button events for this
+
+        client.m_win = this;    
+        // update transients in client to have this as transient_for
+        WinClient::TransientList::iterator trans_it = client.transientList().begin();
+        WinClient::TransientList::iterator trans_it_end = client.transientList().end();
+        for (; trans_it != trans_it_end; ++trans_it) {
+            (*trans_it)->m_client->transient_for = this;
+        }
+
+        Fluxbox::instance()->saveWindowSearch(client.window(), this);
     }
 
-    FbTk::RefCount<FbTk::Command> set_client_cmd(new SetClientCmd(client));
-    btn->setOnClick(set_client_cmd);
-    evm.add(*this, btn->window()); // we take care of button events for this
 
 #ifdef DEBUG
     XSync(display, False); // so we see error/warnings in time
     cerr<<"destroyed old window "<<client.window()<<endl;
 #endif // DEBUG
-    
-    client.m_win = this;    
-    Fluxbox::instance()->saveWindowSearch(client.window(), this);
 
-    // update transients in client to have this as transient_for
-    WinClient::TransientList::iterator trans_it = client.transientList().begin();
-    WinClient::TransientList::iterator trans_it_end = client.transientList().end();
-    for (; trans_it != trans_it_end; ++trans_it) {
-        (*trans_it)->m_client->transient_for = this;
-    }
-
+    // keep the current window on top
     m_client->raise();
 
 #ifdef DEBUG
@@ -633,6 +669,8 @@ void FluxboxWindow::setCurrentClient(WinClient &client) {
 
     m_client = &client;
     m_client->raise();
+    Fluxbox::instance()->setFocusedWindow(this);
+    setInputFocus();
 }
 
 bool FluxboxWindow::isGroupable() const {
