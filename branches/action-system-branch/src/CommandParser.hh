@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: CommandParser.hh,v 1.2 2003/07/01 09:01:20 fluxgen Exp $
+// $Id: CommandParser.hh,v 1.2.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef COMMANDPARSER_HH
 #define COMMANDPARSER_HH
@@ -32,6 +32,8 @@
 
 namespace FbTk {
 class Command;
+class Action;
+class ActionBinding;
 };
 
 /// Creates commands from command and argument.
@@ -42,6 +44,11 @@ public:
     virtual ~CommandFactory();
     virtual FbTk::Command *stringToCommand(const std::string &command, 
                                            const std::string &arguments) = 0;
+    // some actions need to know what binding they were called as
+    virtual FbTk::Action  *stringToAction (const std::string &action, 
+                                           const std::string &arguments,
+                                           FbTk::ActionBinding *binding) = 0;
+
 protected:
     void addCommand(const std::string &value);
 };
@@ -52,7 +59,10 @@ public:
     typedef std::map<std::string, CommandFactory *> CommandFactoryMap;
 
     /// @return parses and returns a command matching the line
-    FbTk::Command *parseLine(const std::string &line);
+    FbTk::Command *parseCommand(const std::string &line);
+    FbTk::Action  *parseAction (const std::string &line,
+                                FbTk::ActionBinding *binding = 0);
+
 
     /// @return instance of command parser
     static CommandParser &instance();
@@ -62,11 +72,14 @@ private:
     /// associate a command with a factory
     void associateCommand(const std::string &name, CommandFactory &factory);
     /// remove all associations with the factory
-    void removeAssociation(CommandFactory &factory);
+    void removeAssociations(CommandFactory &factory);
 
     /// search for a command in our command factory map
     FbTk::Command *toCommand(const std::string &command,
                              const std::string &arguments);
+    FbTk::Action  *toAction (const std::string &action,
+                             const std::string &arguments,
+                             FbTk::ActionBinding *binding);
     
     CommandFactoryMap m_commandfactorys; ///< a string to factory map
     

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Menu.cc,v 1.39 2003/10/06 09:55:36 rathnor Exp $
+// $Id: Menu.cc,v 1.39.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 //use GNU extensions
 #ifndef	 _GNU_SOURCE
@@ -35,6 +35,7 @@
 #include "ImageControl.hh"
 #include "MenuTheme.hh"
 #include "App.hh"
+#include "KeyUtil.hh"
 #include "EventManager.hh"
 #include "Transparent.hh"
 
@@ -1287,6 +1288,8 @@ void Menu::leaveNotifyEvent(XCrossingEvent &ce) {
 void Menu::keyPressEvent(XKeyEvent &event) {
     KeySym ks;
     char keychar[1];
+    event.state = KeyUtil::cleanMods(event.state);
+
     XLookupString(&event, keychar, 1, &ks, 0);
     // a modifier key by itself doesn't do anything
     if (IsModifierKey(ks)) 

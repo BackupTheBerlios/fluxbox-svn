@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WorkspaceCmd.cc,v 1.6 2003/10/14 00:21:16 fluxgen Exp $
+// $Id: WorkspaceCmd.cc,v 1.6.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "WorkspaceCmd.hh"
 
@@ -30,51 +30,99 @@
 #include "fluxbox.hh"
 
 #include "FbTk/KeyUtil.hh"
+#include "FbTk/ActionContext.hh"
 
 #include <algorithm>
 #include <functional>
 
-void NextWindowCmd::execute() {
-    
-    BScreen *screen = Fluxbox::instance()->keyScreen();
-    if (screen != 0) {
-        Fluxbox *fb = Fluxbox::instance();
-        // special case for commands from key events
-        if (fb->lastEvent().type == KeyPress) {
-            unsigned int mods = FbTk::KeyUtil::cleanMods(fb->lastEvent().xkey.state);
-            if (mods == 0) // can't stacked cycle unless there is a mod to grab
-                screen->nextFocus(m_option | BScreen::CYCLELINEAR);
-            else {
-                // if stacked cycling, then set a watch for 
-                // the release of exactly these modifiers
-                if (!fb->watchingScreen() && !(m_option & BScreen::CYCLELINEAR))
-                    Fluxbox::instance()->watchKeyRelease(*screen, mods);
-                screen->nextFocus(m_option);
-            }
-        } else
-            screen->nextFocus(m_option);
-    }
+CycleWindowAction::~CycleWindowAction() {
+    // free all the binding info
+    resetBindings();
 }
 
-void PrevWindowCmd::execute() {
-    BScreen *screen = Fluxbox::instance()->keyScreen();
-    if (screen != 0) {
-        Fluxbox *fb = Fluxbox::instance();
-        // special case for commands from key events
-        if (fb->lastEvent().type == KeyPress) {
-            unsigned int mods = FbTk::KeyUtil::cleanMods(fb->lastEvent().xkey.state);
-            if (mods == 0) // can't stacked cycle unless there is a mod to grab
-                screen->prevFocus(m_option | BScreen::CYCLELINEAR);
-            else {
-                // if stacked cycling, then set a watch for 
-                // the release of exactly these modifiers
-                if (!fb->watchingScreen() && !(m_option & BScreen::CYCLELINEAR))
-                    Fluxbox::instance()->watchKeyRelease(*screen, mods);
-                screen->prevFocus(m_option);
-            }
-        } else
-            screen->nextFocus(m_option);
+void CycleWindowAction::resetBindings() {
+    BindingOptions::iterator it = m_options.begin();
+    BindingOptions::iterator it_end = m_options.end();
+    for (; it != it_end; ++it) {
+        delete it->first;
+        delete it->second;
     }
+    m_options.clear();
+}
+
+void CycleWindowAction::addBinding(FbTk::ActionBinding *binding, bool forward, int options) {
+    // check if it's already there
+    if (binding != 0 && m_options.find(binding) != m_options.end())
+        return;
+
+    CycleOptions *opts = new CycleOptions(forward, options);
+    FbTk::ActionBinding *new_binding;
+    if (binding)
+        new_binding = new FbTk::ActionBinding(*binding);
+    else
+        new_binding = new FbTk::ActionBinding();
+
+    m_options[new_binding] = opts;
+}
+
+CycleWindowAction::CycleOptions *CycleWindowAction::getOptions(FbTk::ActionBinding *binding) {
+    if (binding == 0)
+        return 0;
+    BindingOptions::iterator it = m_options.find(binding);
+    if (it == m_options.end())
+        return 0;
+    else
+        return it->second;
+}
+
+
+void CycleWindowAction::start(FbTk::ActionContext &context) {
+    // we don't have to do anything special on start, since
+    // nextFocus starts if it hasn't already
+
+    // the start implies a motion
+    motion(context);
+
+}
+
+void CycleWindowAction::motion(FbTk::ActionContext &context) {
+    CycleOptions *opts = getOptions(context.binding);
+
+    if (!opts)
+        return;
+
+    BScreen *screen = Fluxbox::instance()->keyScreen();
+    if (screen == 0) 
+        return;
+
+    // if we have no mods thatcan be grabbed, then we must go linear
+    int force_opts = 0;
+    if (context.binding->mods() == 0)
+        force_opts = BScreen::CYCLELINEAR;
+
+    if (opts->forward)
+        screen->nextFocus(opts->options | force_opts);
+    else
+        screen->prevFocus(opts->options | force_opts);
+}
+
+void CycleWindowAction::stop(FbTk::ActionContext &context) {
+    BScreen *screen = Fluxbox::instance()->keyScreen();
+    if (screen != 0)
+        screen->stopFocusCycling();
+    
+}
+
+void SimpleNextWindowCmd::execute() {
+    BScreen *screen = Fluxbox::instance()->keyScreen();
+    if (screen != 0)
+        screen->nextFocus(m_option | BScreen::CYCLELINEAR);
+}
+
+void SimplePrevWindowCmd::execute() {
+    BScreen *screen = Fluxbox::instance()->keyScreen();
+    if (screen != 0)
+        screen->prevFocus(m_option | BScreen::CYCLELINEAR);
 }
 
 void NextWorkspaceCmd::execute() {
@@ -125,7 +173,7 @@ void ArrangeWindowsCmd::execute() {
     const unsigned int max_heigth = screen->height();
 
 	// try to get the same number of rows as columns.
-	unsigned int rows = int(sqrt(win_count));  // truncate to lower
+	unsigned int rows = int(sqrt(float(win_count)));  // truncate to lower
 	unsigned int cols = int(0.99 + float(win_count) / float(rows));
 	if (max_width<max_heigth) {	// rotate
 		unsigned int tmp;

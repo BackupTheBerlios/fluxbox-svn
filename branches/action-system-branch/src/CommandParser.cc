@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: CommandParser.cc,v 1.4 2003/08/11 13:47:51 fluxgen Exp $
+// $Id: CommandParser.cc,v 1.4.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "CommandParser.hh"
 
@@ -46,7 +46,7 @@ CommandFactory::CommandFactory() {
 
 CommandFactory::~CommandFactory() {
     // remove all associations with this factory
-    CommandParser::instance().removeAssociation(*this);
+    CommandParser::instance().removeAssociations(*this);
 }
 
 void CommandFactory::addCommand(const std::string &command_name) {
@@ -58,9 +58,9 @@ CommandParser &CommandParser::instance() {
     return singleton;
 }
 
-FbTk::Command *CommandParser::parseLine(const std::string &line) {
+FbTk::Command *CommandParser::parseCommand(const std::string &line) {
 
-    // parse arguments and command
+    // separate arguments and command
     string command = line;
     string arguments;
     string::size_type first_pos = removeFirstWhitespace(command);
@@ -83,12 +83,49 @@ FbTk::Command *CommandParser::parseLine(const std::string &line) {
 
 }
 
+// binding that this action is associated with
+FbTk::Action *CommandParser::parseAction(const std::string &line, FbTk::ActionBinding *binding) {
+
+    // separate arguments and command
+    string command = line;
+    string arguments;
+    string::size_type first_pos = removeFirstWhitespace(command);
+    string::size_type second_pos = command.find_first_of(" \t", first_pos);
+    if (second_pos != string::npos) {
+        // ok we have arguments, parsing them here
+        arguments = command.substr(second_pos);
+        removeFirstWhitespace(arguments);
+        command.erase(second_pos); // remove argument from command
+    }
+
+    // now we have parsed command and arguments
+
+    command = FbTk::StringUtil::toLower(command);
+
+    // we didn't find any matching command in default commands,
+    // so we search in the command creators modules for a 
+    // matching command string
+    return toAction(command, arguments, binding);
+
+}
+
 FbTk::Command *CommandParser::toCommand(const std::string &command_str, const std::string &arguments) {
     if (m_commandfactorys[command_str] != 0)
         return m_commandfactorys[command_str]->stringToCommand(command_str, arguments);
 
     return 0;
 }
+
+FbTk::Action *CommandParser::toAction(const std::string &command_str,
+                                      const std::string &arguments,
+                                      FbTk::ActionBinding *binding) {
+
+    if (m_commandfactorys[command_str] != 0)
+        return m_commandfactorys[command_str]->stringToAction(command_str, arguments, binding);
+
+    return 0;
+}
+
 
 void CommandParser::associateCommand(const std::string &command, CommandFactory &factory) {
     // we shouldnt override other commands
@@ -98,7 +135,7 @@ void CommandParser::associateCommand(const std::string &command, CommandFactory 
     m_commandfactorys[command] = &factory;
 }
 
-void CommandParser::removeAssociation(CommandFactory &factory) {
+void CommandParser::removeAssociations(CommandFactory &factory) {
     // commands that are associated with the factory
     std::vector<std::string> commands; 
     // find associations

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Toolbar.cc,v 1.125 2003/10/14 00:21:52 fluxgen Exp $
+// $Id: Toolbar.cc,v 1.125.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "Toolbar.hh"
 
@@ -733,7 +733,7 @@ void Toolbar::setupMenus() {
     //!! TODO: this should be inserted by the workspace tool
         
 
-    RefCount<Command> start_edit(CommandParser::instance().parseLine("setworkspacename"));
+    RefCount<Command> start_edit(CommandParser::instance().parseCommand("setworkspacename"));
     menu.insert(i18n->getMessage(FBNLS::ToolbarSet, FBNLS::ToolbarEditWkspcName,
                                  "Edit current workspace name"),
                 start_edit);
@@ -749,7 +749,7 @@ void Toolbar::setupMenus() {
     FbTk::RefCount<FbTk::Command> reconfig_toolbar(new FbTk::
                                                    SimpleCommand<Toolbar>
                                                    (tbar, &Toolbar::reconfigure));
-    FbTk::RefCount<FbTk::Command> save_resources(CommandParser::instance().parseLine("saverc"));
+    FbTk::RefCount<FbTk::Command> save_resources(CommandParser::instance().parseCommand("saverc"));
     FbTk::MacroCommand *toolbar_menuitem_macro = new FbTk::MacroCommand();
     toolbar_menuitem_macro->add(reconfig_toolbar);
     toolbar_menuitem_macro->add(save_resources);

@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: EventManager.cc,v 1.10 2003/10/14 16:23:16 rathnor Exp $
+// $Id: EventManager.cc,v 1.10.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "EventManager.hh"
 #include "FbWindow.hh"
@@ -163,6 +163,8 @@ void EventManager::dispatch(Window win, XEvent &ev, bool parent) {
 	break;
     };
 
+/* TODO: why do we do this??? is it absolutely necessary???
+ *       I suspect the new "getEventWindow" fixes this
     // find out which window is the parent and 
     // dispatch event
     Window root, parent_win, *children = 0;
@@ -181,7 +183,7 @@ void EventManager::dispatch(Window win, XEvent &ev, bool parent) {
             dispatch(parent_win, ev, true);
         }
     }
-
+*/
 }
 
 }; // end namespace FbTk

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.hh,v 1.100 2003/10/28 02:17:03 rathnor Exp $
+// $Id: Window.hh,v 1.100.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef	 WINDOW_HH
 #define	 WINDOW_HH
@@ -45,6 +45,7 @@ class WinClient;
 class FbWinFrameTheme;
 class BScreen;
 class FbWinFrame;
+class MoveAction;
 
 namespace FbTk {
 class TextButton;
@@ -129,13 +130,6 @@ public:
         DECORM_TAB      = (1<<9),
         DECORM_ENABLED  = (1<<10),
         DECORM_LAST     = (1<<11) // useful for getting "All"
-    };
-
-    enum ResizeCorner {
-      LEFTTOP,
-      LEFTBOTTOM,
-      RIGHTBOTTOM,
-      RIGHTTOP
     };
 
     typedef struct _blackbox_hints {
@@ -227,8 +221,6 @@ public:
     // popup menu on last button press position
     void popupMenu();
 
-    void pauseMoving();
-    void resumeMoving();
     /**
        @name event handlers
     */
@@ -272,8 +264,7 @@ public:
     inline bool isClosable() const { return functions.close; }
     inline bool isStuck() const { return stuck; }
     inline bool hasTitlebar() const { return decorations.titlebar; }
-    inline bool isMoving() const { return moving; }
-    inline bool isResizing() const { return resizing; }
+    inline bool isMoving() const { return (m_active_moveaction != 0); }
     bool isGroupable() const;
     inline int numClients() const { return m_clientlist.size(); }
     inline ClientList &clientList() { return m_clientlist; }
@@ -304,6 +295,13 @@ public:
     void addExtraMenu(const char *label, FbTk::Menu *menu);
     void removeExtraMenu(FbTk::Menu *menu);
 
+    // modifies left and top if snap is appropriate
+    void snapWindowPos(int &left, int &top);
+
+    // modifies width/height to values that are ok for the hints
+    // user_w/h return the values that should be shown to the user
+    void snapWindowSize(int &width, int &height, int *user_w, int * user_h);
+
     ExtraMenus &extraMenus() { return m_extramenus; }
     const ExtraMenus &extraMenus() const { return m_extramenus; }
 
@@ -318,7 +316,14 @@ public:
 
     int layerNum() const { return m_layernum; }
     void setLayerNum(int layernum);
- 
+
+    // These functions do any necessary preparation for a window 
+    // being interactively moved (but don't actually do any moving work)
+    void startMoving(MoveAction *action);
+    void stopMoving();
+    void pauseMoving();
+    void resumeMoving();
+
     unsigned int width() const;
     unsigned int height() const;
     unsigned int titlebarHeight() const;
@@ -371,10 +376,6 @@ private:
     void updateClientLeftWindow();
     void grabButtons();
 
-    void startMoving(Window win);
-    void stopMoving();
-    void startResizing(Window win, int x, int y);
-    void stopResizing(Window win=0);
     void updateIcon();
     /// try to attach current attaching client to a window at pos x, y
     void attachTo(int x, int y);
@@ -393,13 +394,7 @@ private:
     void restoreGravity();
     void setGravityOffsets();
     void setState(unsigned long stateval);
-    void upsize();
-    void downsize();
 
-    // modifies left and top if snap is necessary
-    void doSnapping(int &left, int &top);
-    // user_w/h return the values that should be shown to the user
-    void fixsize(int *user_w = 0, int *user_h = 0);
     void moveResizeClient(WinClient &client, int x, int y, unsigned int width, unsigned int height);
     /// sends configurenotify to all clients
     void sendConfigureNotify(bool send_to_netizens = true);
@@ -407,7 +402,7 @@ private:
     WinSubject m_hintsig, m_statesig, m_layersig, m_workspacesig, m_diesig, m_focussig;
 
     // Window states
-    bool moving, resizing, shaded, iconic,
+    bool shaded, iconic,
         focused, stuck, m_managed;
 
     int maximized;
@@ -422,11 +417,6 @@ private:
     FbMenu m_windowmenu;
 
     timeval m_last_focus_time;
-
-    int m_button_grab_x, m_button_grab_y; // handles last button press event for move
-    int m_last_resize_x, m_last_resize_y; // handles last button press event for resize
-    int m_last_move_x, m_last_move_y; // handles last pos for non opaque moving
-    unsigned int m_last_resize_h, m_last_resize_w; // handles height/width for resize "window"
 
     unsigned int m_workspace_number;
     unsigned long m_current_state;
@@ -463,9 +453,9 @@ private:
 
     FbTk::FbWindow &m_parent; ///< window on which we draw move/resize rectangle  (the "root window")
 
-    ResizeCorner m_resize_corner;
-
     ExtraMenus m_extramenus;
+
+    MoveAction *m_active_moveaction;
 };
 
 

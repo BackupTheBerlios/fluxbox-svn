@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.243 2003/10/28 02:17:02 rathnor Exp $
+// $Id: Window.cc,v 1.243.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "Window.hh"
 
@@ -45,6 +45,7 @@
 #include "FbWinFrame.hh"
 #include "WinButton.hh"
 #include "WinButtonTheme.hh"
+#include "CurrentWindowCmd.hh"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -254,7 +255,7 @@ FluxboxWindow::FluxboxWindow(WinClient &client, BScreen &scr, FbWinFrameTheme &t
     m_workspacesig(*this),
     m_diesig(*this),
     m_focussig(*this),
-    moving(false), resizing(false), shaded(false), 
+    shaded(false), 
     iconic(false), focused(false),
     stuck(false), m_managed(false),
     maximized(MAX_NONE),
@@ -268,7 +269,8 @@ FluxboxWindow::FluxboxWindow(WinClient &client, BScreen &scr, FbWinFrameTheme &t
     m_layeritem(m_frame->window(), layer),
     m_layernum(layer.getLayerNum()),
     m_parent(scr.rootWindow()),
-    m_resize_corner(RIGHTBOTTOM) {
+    m_active_moveaction(0)
+{
 
     init();
 }
@@ -282,7 +284,7 @@ FluxboxWindow::~FluxboxWindow() {
     cerr<<__FILE__<<"("<<__LINE__<<"): m_labelbuttons.size = "<<m_labelbuttons.size()<<endl;
 #endif // DEBUG
 
-    if (moving || resizing || m_attaching_tab) {
+    if (isMoving() || m_attaching_tab) {
         screen().hideGeometry();
         XUngrabPointer(display, CurrentTime);
     }
@@ -464,8 +466,6 @@ void FluxboxWindow::init() {
             functions.resize = functions.maximize = false;
         decorations.tab = false; //no tab for this window
     }
-
-    upsize();
 
     applyDecorations(true);
 
@@ -932,10 +932,6 @@ void FluxboxWindow::grabButtons() {
     XUngrabButton(display, Button1, Mod1Mask|Mod2Mask|Mod3Mask, frame().window().window());
 
 
-    XGrabButton(display, Button1, Mod1Mask, frame().window().window(), True,
-		ButtonReleaseMask | ButtonMotionMask, GrabModeAsync,
-		GrabModeAsync, None, frame().theme().moveCursor());
-
     //----grab with "all" modifiers
     grabButton(display, Button1, frame().window().window(), frame().theme().moveCursor());
 	
@@ -952,8 +948,6 @@ void FluxboxWindow::grabButtons() {
 
 
 void FluxboxWindow::reconfigure() {
-
-    upsize();
 
     applyDecorations();
 
@@ -1115,7 +1109,6 @@ void FluxboxWindow::moveResize(int new_x, int new_y,
         if ((((signed) frame().height()) + new_y) < 0) 
             new_y = 0;
 
-        downsize();
         if (!isResizable()) {
             new_width = width();
             new_height = height();
@@ -1130,16 +1123,12 @@ void FluxboxWindow::moveResize(int new_x, int new_y,
     } else if (send_event)
         frame().move(new_x, new_y);
 
-    if (send_event && ! moving) {
+    if (send_event && ! isMoving()) {
         sendConfigureNotify();
     }
 
     shape();
 
-    if (!moving) {
-        m_last_resize_x = new_x;
-        m_last_resize_y = new_y;
-    }
 }	
 
 // returns whether the focus was "set" to this window
@@ -1270,7 +1259,7 @@ void FluxboxWindow::deiconify(bool reassoc, bool do_raise) {
 
     if (iconic || reassoc) {
         screen().reassociateWindow(this, screen().currentWorkspace()->workspaceID(), false);
-    } else if (moving || m_workspace_number != screen().currentWorkspace()->workspaceID()) {
+    } else if (isMoving() || m_workspace_number != screen().currentWorkspace()->workspaceID()) {
         oplock = false;
         return;
     }
@@ -1321,8 +1310,8 @@ void FluxboxWindow::deiconify(bool reassoc, bool do_raise) {
 void FluxboxWindow::withdraw() {
     iconic = false;
 
-    if (isResizing())
-        stopResizing();
+    if (isMoving())
+        m_active_moveaction->cancel();
 
     frame().hide();
 
@@ -2113,7 +2102,6 @@ void FluxboxWindow::propertyNotifyEvent(WinClient &client, Atom atom) {
         if (client.isTransient() && !was_transient
             && client.transientFor()->fbwindow())
             layerItem().setLayer(client.transientFor()->fbwindow()->layerItem().getLayer());
-            
     } break;
 
     case XA_WM_HINTS:
@@ -2134,7 +2122,6 @@ void FluxboxWindow::propertyNotifyEvent(WinClient &client, Atom atom) {
             screen().getWorkspace(m_workspace_number)->update();
         else
             updateIcon();
-		 
 
         break;
 
@@ -2165,8 +2152,6 @@ void FluxboxWindow::propertyNotifyEvent(WinClient &client, Atom atom) {
         // save old values
         int x = frame().x(), y = frame().y();
         unsigned int w = frame().width(), h = frame().height();
-
-        upsize();
 
         // reconfigure if the old values changed
         if (x != frame().x() || y != frame().y() ||
@@ -2229,17 +2214,17 @@ void FluxboxWindow::configureRequestEvent(XConfigureRequestEvent &cr) {
     bool send_notify = false;
 
     // the request is for client window so we resize the frame to it first
-    if (frame().width() != cw || frame().height() != ch) {        
-        if (frame().x() != cx || frame().y() != cy) 
+    if (frame().width() != cw || frame().height() != ch) {
+        if (frame().x() != cx || frame().y() != cy)
             frame().moveResizeForClient(cx, cy, cw, ch);
-        else 
+        else
             frame().resizeForClient(cw, ch);
         send_notify = true;
     } else if (frame().x() != cx || frame().y() != cy) {
         move(cx, cy);
         // since we already send a notify in move we don't need to do that again
         send_notify = false;
-    } 
+    }
 
     if (cr.value_mask & CWStackMode) {
         switch (cr.detail) {
@@ -2264,21 +2249,20 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
     m_last_button_x = be.x_root;
     m_last_button_y = be.y_root;
 
+    Fluxbox::instance()->keys().handler().buttonPressEvent(be);
+
     // check frame events first
     frame().buttonPressEvent(be);
 
     if (be.button == 1 || (be.button == 3 && be.state == Mod1Mask)) {
-        if ((! focused) && (! screen().isSloppyFocus())) { //check focus 
-            setInputFocus(); 
+        if ((! focused) && (! screen().isSloppyFocus())) { //check focus
+            setInputFocus();
         }
-
-        if (frame().window().window() == be.window) {            
+        if (frame().window().window() == be.window) {
             if (screen().clickRaises())
                 raise();
             XAllowEvents(display, ReplayPointer, be.time);			
 
-            m_button_grab_x = be.x_root - frame().x() - frame().window().borderWidth();
-            m_button_grab_y = be.y_root - frame().y() - frame().window().borderWidth();
         }
         
         if (m_windowmenu.isVisible())
@@ -2287,41 +2271,16 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
 }
 
 void FluxboxWindow::buttonReleaseEvent(XButtonEvent &re) {
-
-    if (isMoving())
-        stopMoving();		
-    else if (isResizing())
-        stopResizing();
-    else if (m_attaching_tab)
-        attachTo(re.x_root, re.y_root);
-    else if (re.window == frame().window()) {
-        if (re.button == 2 && re.state == Mod1Mask)
-            XUngrabPointer(display, CurrentTime);
-        else 
-            frame().buttonReleaseEvent(re);
-    } else {
-        frame().buttonReleaseEvent(re);
-    }
+    Fluxbox::instance()->keys().handler().buttonReleaseEvent(re);
 }
 
 
 void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
-    if (isMoving() && me.window == parent()) {
-        me.window = frame().window().window();
-    }
+    Fluxbox::instance()->keys().handler().motionNotifyEvent(me);
+
+    /*
     bool inside_titlebar = (frame().titlebar() == me.window || frame().label() == me.window ||
                             frame().handle() == me.window || frame().window() == me.window);
-
-    if (Fluxbox::instance()->getIgnoreBorder()
-        && !(me.state & Mod1Mask) // really should check for exact matches
-        && !(isMoving() || isResizing())) {
-        int borderw = frame().window().borderWidth();
-        if (me.x_root < (frame().x() + borderw) ||
-            me.y_root < (frame().y() + borderw) ||
-            me.x_root > (frame().x() + (int)frame().width() + borderw) ||
-            me.y_root > (frame().y() + (int)frame().height() + borderw))
-            return;
-    }
 
     WinClient *client = 0;
     if (!inside_titlebar) {
@@ -2336,139 +2295,8 @@ void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
             }
         }
     }
-
-    if ((me.state & Button1Mask) && functions.move &&
-        inside_titlebar && 
-        !isResizing()) {
-
-        if (! isMoving()) {
-            startMoving(me.window);
-        } else {
-            int dx = me.x_root - m_button_grab_x, 
-                dy = me.y_root - m_button_grab_y;
-
-            dx -= frame().window().borderWidth();
-            dy -= frame().window().borderWidth();
-
-            // Warp to next or previous workspace?, must have moved sideways some
-            int moved_x = me.x_root - m_last_resize_x;
-            // save last event point
-            m_last_resize_x = me.x_root;
-            m_last_resize_y = me.y_root;
-
-            if (moved_x && screen().isWorkspaceWarping()) {
-                unsigned int cur_id = screen().currentWorkspaceID();
-                unsigned int new_id = cur_id;
-                const int warpPad = screen().getEdgeSnapThreshold();
-                // 1) if we're inside the border threshold
-                // 2) if we moved in the right direction
-                if (me.x_root >= int(screen().width()) - warpPad - 1 &&
-                    moved_x > 0) {
-                    //warp right
-                    new_id = (cur_id + 1) % screen().getCount();
-                    dx = - me.x_root; // move mouse back to x=0
-                } else if (me.x_root <= warpPad &&
-                           moved_x < 0) {
-                    //warp left
-                    new_id = (cur_id + screen().getCount() - 1) % screen().getCount();
-                    dx = screen().width() - me.x_root-1; // move mouse to screen width - 1
-                }
-                if (new_id != cur_id) {
-                    XWarpPointer(display, None, None, 0, 0, 0, 0, dx, 0);
-
-                    screen().changeWorkspaceID(new_id);
-
-                    m_last_resize_x = me.x_root + dx;
-                    
-                    // dx is the difference, so our new x is what it would  have been
-                    // without the warp, plus the difference.
-                    dx += me.x_root - m_button_grab_x;
-                }
-            }
-            // dx = current left side, dy = current top
-            doSnapping(dx, dy);
-            
-            if (! screen().doOpaqueMove()) {
-                parent().drawRectangle(screen().rootTheme().opGC(),
-                                       m_last_move_x, m_last_move_y, 
-                                       frame().width() + 2*frame().window().borderWidth()-1,
-                                       frame().height() + 2*frame().window().borderWidth()-1);
-
-                parent().drawRectangle(screen().rootTheme().opGC(),
-                                       dx, dy, 
-                                       frame().width() + 2*frame().window().borderWidth()-1,
-                                       frame().height() + 2*frame().window().borderWidth()-1);
-                m_last_move_x = dx;
-                m_last_move_y = dy;
-            } else {
-                moveResize(dx, dy, frame().width(), frame().height());
-            }
-
-            if (screen().doShowWindowPos())
-                screen().showPosition(dx, dy);
-        } // end if moving
-    } else if (functions.resize &&
-               (((me.state & Button1Mask) && (me.window == frame().gripRight() ||
-                                              me.window == frame().gripLeft())) ||
-                me.window == frame().window())) {
-
-        if (! resizing) {			
-
-          int cx = frame().width() / 2;
-          int cy = frame().height() / 2;
-
-          if (me.window == frame().gripRight())
-              m_resize_corner = RIGHTBOTTOM;
-          else if (me.window == frame().gripLeft())
-              m_resize_corner = LEFTBOTTOM;
-          else if (screen().getResizeMode() != "quadrant")
-              m_resize_corner = RIGHTBOTTOM;
-          else if (me.x < cx)
-              m_resize_corner = (me.y < cy) ? LEFTTOP : LEFTBOTTOM;
-          else
-              m_resize_corner = (me.y < cy) ? RIGHTTOP : RIGHTBOTTOM;
-
-          startResizing(me.window, me.x, me.y);
-        } else if (resizing) {
-            // draw over old rect
-            parent().drawRectangle(screen().rootTheme().opGC(),
-                                   m_last_resize_x, m_last_resize_y,
-                                   m_last_resize_w - 1 + 2 * frame().window().borderWidth(),
-                                   m_last_resize_h - 1 + 2 * frame().window().borderWidth());
-
-
-            // move rectangle
-            int gx = 0, gy = 0;
-
-            int dx = me.x - m_button_grab_x;
-            int dy = me.y - m_button_grab_y;
-
-            if (m_resize_corner == LEFTTOP || m_resize_corner == RIGHTTOP) {
-                m_last_resize_h = frame().height() - dy;
-                m_last_resize_y = frame().y() + dy;
-            } else {
-                m_last_resize_h = frame().height() + dy;
-            }
-
-            if (m_resize_corner == LEFTTOP || m_resize_corner == LEFTBOTTOM) {
-                 m_last_resize_w = frame().width() - dx;
-                 m_last_resize_x = frame().x() + dx;
-            } else {
-                 m_last_resize_w = frame().width() + dx;
-            }
-
-            fixsize(&gx, &gy);
-
-            // draw resize rectangle
-            parent().drawRectangle(screen().rootTheme().opGC(),
-                                   m_last_resize_x, m_last_resize_y,
-                                   m_last_resize_w - 1 + 2 * frame().window().borderWidth(), 
-                                   m_last_resize_h - 1 + 2 * frame().window().borderWidth());
-
-            if (screen().doShowWindowPos())
-                screen().showGeometry(gx, gy);
-        }
-    } else if ((me.state & Button2Mask) && inside_titlebar && client != 0) {
+    
+    if ((me.state & Button2Mask) && inside_titlebar && client != 0) {
 
         //
         // drag'n'drop code for tabs
@@ -2533,7 +2361,7 @@ void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
 			
         }
     }
-
+    */
 }
 
 void FluxboxWindow::enterNotifyEvent(XCrossingEvent &ev) { 
@@ -2736,99 +2564,33 @@ void FluxboxWindow::setDecorationMask(unsigned int mask) {
     applyDecorations();
 }
 
-void FluxboxWindow::startMoving(Window win) {
-    moving = true;
-    Fluxbox *fluxbox = Fluxbox::instance();
-    // grabbing (and masking) on the root window allows us to 
-    // freely map and unmap the window we're moving.
-    XGrabPointer(display, screen().rootWindow().window(), False, Button1MotionMask |
-                 ButtonReleaseMask, GrabModeAsync, GrabModeAsync,
-                 screen().rootWindow().window(), frame().theme().moveCursor(), CurrentTime);
+void FluxboxWindow::startMoving(MoveAction *action) {
+
+    m_active_moveaction = action;
 
     if (m_windowmenu.isVisible())
         m_windowmenu.hide();
 
-    // The "stop" window and event aren't going to happen (since it's
-    // grabbed, so they are just so we can remove it in stopMoving)
-    fluxbox->addRedirectEvent(&screen(), 
-                              MotionNotify, screen().rootWindow().window(), 
-                              MotionNotify, fbWindow().window(),
-                              fbWindow().window());
-    fluxbox->addRedirectEvent(&screen(), 
-                              ButtonRelease, screen().rootWindow().window(), 
-                              ButtonRelease, fbWindow().window(),
-                              fbWindow().window());
-
-    m_last_move_x = frame().x();
-    m_last_move_y = frame().y();
-    if (! screen().doOpaqueMove()) {
-        fluxbox->grab();
-        parent().drawRectangle(screen().rootTheme().opGC(),
-                               frame().x(), frame().y(),
-                               frame().width() + 2*frame().window().borderWidth()-1, 
-                               frame().height() + 2*frame().window().borderWidth()-1);
-        screen().showPosition(frame().x(), frame().y());
-    }
 }
 
 void FluxboxWindow::stopMoving() {
-    moving = false;
-    Fluxbox *fluxbox = Fluxbox::instance();
 
-    fluxbox->removeRedirectEvent(MotionNotify, fbWindow().window());
-    fluxbox->removeRedirectEvent(ButtonRelease, fbWindow().window());
-   
-    if (! screen().doOpaqueMove()) {
-        parent().drawRectangle(screen().rootTheme().opGC(),
-                               m_last_move_x, m_last_move_y, 
-                               frame().width() + 2*frame().window().borderWidth()-1,
-                               frame().height() + 2*frame().window().borderWidth()-1);
-        moveResize(m_last_move_x, m_last_move_y, frame().width(), frame().height());
-        if (m_workspace_number != screen().currentWorkspaceID()) {
-            screen().reassociateWindow(this, screen().currentWorkspaceID(), true);
-            frame().show();
-        }
-        fluxbox->ungrab();
-    } else {
-        moveResize(frame().x(), frame().y(), frame().width(), frame().height());
-        sendConfigureNotify();
-    }
-
-
-    screen().hideGeometry();
-    XUngrabPointer(display, CurrentTime);
-	
-    XSync(display, False); //make sure the redraw is made before we continue
+    m_active_moveaction = 0;
 }
 
 void FluxboxWindow::pauseMoving() {
-    if (screen().doOpaqueMove()) {
+    if (m_active_moveaction == 0)
         return;
-    }
-
-    parent().drawRectangle(screen().rootTheme().opGC(),
-                           m_last_move_x, m_last_move_y, 
-                           frame().width() + 2*frame().window().borderWidth()-1,
-                           frame().height() + 2*frame().window().borderWidth()-1);
-    
+    else
+        m_active_moveaction->safePause();
 }
 
 
 void FluxboxWindow::resumeMoving() {
-    if (screen().doOpaqueMove()) {
+    if (m_active_moveaction == 0)
         return;
-    }
-    
-    if (m_workspace_number == screen().currentWorkspaceID()) {
-        frame().show();
-    }
-    XSync(display,false);
-
-    parent().drawRectangle(screen().rootTheme().opGC(),
-                           m_last_move_x, m_last_move_y, 
-                           frame().width() + 2*frame().window().borderWidth()-1,
-                           frame().height() + 2*frame().window().borderWidth()-1);
-
+    else
+        m_active_moveaction->resume();
 }
 
 /**
@@ -2868,7 +2630,7 @@ inline void snapToWindow(int &xlimit, int &ylimit,
  * Do Whatever snapping magic is necessary, and return using the orig_left 
  * and orig_top variables to indicate the new x,y position
  */
-void FluxboxWindow::doSnapping(int &orig_left, int &orig_top) {
+void FluxboxWindow::snapWindowPos(int &orig_left, int &orig_top) {
     /*
      * Snap to screen/head edges
      * Snap to windows
@@ -2933,66 +2695,18 @@ void FluxboxWindow::doSnapping(int &orig_left, int &orig_top) {
 }
 
 
-void FluxboxWindow::startResizing(Window win, int x, int y) {
-    resizing = true;
-
-    const Cursor& cursor = (m_resize_corner == LEFTTOP) ? frame().theme().upperLeftAngleCursor() :
-                           (m_resize_corner == RIGHTTOP) ? frame().theme().upperRightAngleCursor() :
-                           (m_resize_corner == RIGHTBOTTOM) ? frame().theme().lowerRightAngleCursor() :
-                                                            frame().theme().lowerLeftAngleCursor();
-
-    XGrabPointer(display, win, false, ButtonMotionMask | ButtonReleaseMask, 
-                 GrabModeAsync, GrabModeAsync, None, cursor, CurrentTime);
-
-    int gx = 0, gy = 0;
-    m_button_grab_x = x;
-    m_button_grab_y = y;
-    m_last_resize_x = frame().x();
-    m_last_resize_y = frame().y();
-    m_last_resize_w = frame().width();
-    m_last_resize_h = frame().height();
-
-    fixsize(&gx, &gy);
-
-    if (screen().doShowWindowPos())
-        screen().showGeometry(gx, gy);
-
-    parent().drawRectangle(screen().rootTheme().opGC(),
-                           m_last_resize_x, m_last_resize_y,
-                           m_last_resize_w - 1 + 2 * frame().window().borderWidth(),
-                           m_last_resize_h - 1 + 2 * frame().window().borderWidth());
-}
-
-void FluxboxWindow::stopResizing(Window win) {
-    resizing = false;
-	
-    parent().drawRectangle(screen().rootTheme().opGC(),
-                           m_last_resize_x, m_last_resize_y,
-                           m_last_resize_w - 1 + 2 * frame().window().borderWidth(),
-                           m_last_resize_h - 1 + 2 * frame().window().borderWidth());
-
-    screen().hideGeometry();
-
-    fixsize();
-	
-    moveResize(m_last_resize_x, m_last_resize_y,
-               m_last_resize_w, m_last_resize_h);
-	
-    XUngrabPointer(display, CurrentTime);
-}
-
 void FluxboxWindow::attachTo(int x, int y) {
     if (m_attaching_tab == 0)
         return;
 
     XUngrabPointer(display, CurrentTime);
 
-
+/*
     parent().drawRectangle(screen().rootTheme().opGC(),
                            m_last_move_x, m_last_move_y, 
                            m_labelbuttons[m_attaching_tab]->width(), 
                            m_labelbuttons[m_attaching_tab]->height());
-            
+*/          
     int dest_x = 0, dest_y = 0;
     Window child = 0;
 
@@ -3194,18 +2908,9 @@ void FluxboxWindow::changeBlackboxHints(const BlackboxHints &net) {
 
 }
 
-void FluxboxWindow::upsize() {
 
-}
+void FluxboxWindow::snapWindowSize(int &width, int &height, int *user_w, int * user_h) {
 
-
-///TODO
-void FluxboxWindow::downsize() {
-	
-}
-
-
-void FluxboxWindow::fixsize(int *user_w, int *user_h) {
     int titlebar_height = (decorations.titlebar ? 
                            frame().titlebar().height()  + 
                            frame().titlebar().borderWidth() : 0);
@@ -3214,27 +2919,15 @@ void FluxboxWindow::fixsize(int *user_w, int *user_h) {
                          frame().handle().borderWidth() : 0);
     int decoration_height = titlebar_height + handle_height;
 
-    // dx is new width = current width + difference between new and old x values
-    //int dx = frame().width() + frame().x() - m_last_resize_x;
-    int dw = m_last_resize_w;
+    int dw = width;
+    int dh = height - decoration_height;
 
-    // dy = new height (w/o decorations), similarly
-    int dh = m_last_resize_h - decoration_height;
-
+    // size hints are applied without decorations
+    // also returns the width/height to be shown to the user
     m_client->applySizeHints(dw, dh, user_w, user_h);
 
-    // update last resize 
-    m_last_resize_w = dw;
-    m_last_resize_h = dh + decoration_height;
-
-    // move X if necessary
-    if (m_resize_corner == LEFTTOP || m_resize_corner == LEFTBOTTOM) {
-        m_last_resize_x = frame().x() + frame().width() - m_last_resize_w;	
-    }
-
-    if (m_resize_corner == LEFTTOP || m_resize_corner == RIGHTTOP) {
-        m_last_resize_y = frame().y() + frame().height() - m_last_resize_h;
-    }
+    width = dw;
+    height = dh + decoration_height;
 
 }
 

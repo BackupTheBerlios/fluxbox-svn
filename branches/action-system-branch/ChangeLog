@@ -1,4 +1,44 @@
 (Format: Year/Month/Day)
+Changes for 0.9.7:
+*03/10/28:
+  * Big commit of action system changes thus far to new branch (Simon)
+    - Must have keybindings for Move/Resize, e.g.:
+      Control Button1 :Move
+      Control Mod1 Button1 :Resize
+    - Rename old "Move" command to "MoveIncr" ditto resize.
+    - Rename old next/prev window to SimpleNextWindow etc 
+      - The simple ones can't do the stateful (stacked) cycling
+    - Remove Parent window dispatch from EventManager
+      - might break some events, but should fix these rather than put 
+        this hack back :-)
+    - Most of Keys.cc/hh moved to KeyUtil or ActionHandler
+    - Most grabbing stuff moved from Fluxbox/BScreen to ActionHandler
+    - CommandFactories must also provide parseAction as well as parseCommand
+      -> can use FbTk::ActionCommand to turn a command into a simple action
+    - FbWindowTranform/FbTk::WindowTransform are to help with drawing 
+      outlines/opaque move/resizing for windows. Should convert things 
+      to this rather than implementing outline for each one.
+    - add ScreensApp for FbTk to have access to info on which screens 
+      are being used.
+    - a few random fixes to stuff
+    - FluxboxWindow now only has isMoving for both moving and resizing
+      (since they have the same conceptual consequences)
+    - still TODO: 
+      * keybind chaining
+      * handler cleaning up 
+      * implement other actions, e.g. dragging titlebar to move, tabbing
+      * remove big chunks of commented code when replaced
+      * Fix up other stuff that has broken (e.g. toolbar clicking)
+      * Figure out a way to specify sharing Button events, and 
+        specifying them...
+    FbTk/... Action.hh/cc ActionHandler.hh/cc ActionNode.hh/cc 
+     ActionContext.hh/cc CommandAction.hh/cc KeyUtil.hh/cc 
+     ScreensApp.hh/cc WindowTools.hh/cc Theme.cc Menu.cc EventManager.cc
+     Makefile.am
+    src/... CommandParser.hh/cc CurrentWindowCommand.hh/cc 
+     FbCommandFactory.hh/cc Key.hh/cc Screen.hh/cc ToolFactory.cc 
+     Toolbar.cc Window.hh/cc WorkspaceCmd.hh/cc fluxbox.hh/cc 
+     Makefile.am
 Changes for 0.9.6:
 *03/10/28:
   * Fix building with --disable-slit (Simon)

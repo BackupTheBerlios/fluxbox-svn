@@ -22,6 +22,7 @@ libFbTk_a_SOURCES = App.hh App.cc Color.cc Color.hh Command.hh \
 	Text.hh Text.cc \
 	Texture.cc Texture.hh TextureRender.hh TextureRender.cc \
 	Theme.hh Theme.cc ThemeItems.hh Timer.hh Timer.cc \
+	ScreensApp.hh ScreensApp.cc \
 	XFontImp.cc XFontImp.hh \
 	Button.hh Button.cc \
 	TextButton.hh TextButton.cc \
@@ -34,12 +35,17 @@ libFbTk_a_SOURCES = App.hh App.cc Color.cc Color.hh Command.hh \
 	FbPixmap.hh FbPixmap.cc \
 	FbDrawable.hh FbDrawable.cc \
 	XrmDatabaseHelper.hh \
+	ActionHandler.hh ActionHandler.cc Action.hh Action.cc \
+	CommandAction.hh CommandAction.cc \
+	ActionNode.hh ActionNode.cc \
+	ActionContext.hh ActionContext.cc \
 	Image.hh Image.cc \
 	PixmapWithMask.hh \
 	Compose.hh \
 	TextBox.hh TextBox.cc \
 	GContext.hh GContext.cc \
 	KeyUtil.hh KeyUtil.cc \
+	WindowTools.hh WindowTools.cc \
 	${xpm_SOURCE} \
 	${xft_SOURCE} \
 	${xmb_SOURCE}

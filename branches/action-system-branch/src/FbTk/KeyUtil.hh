@@ -19,11 +19,12 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: KeyUtil.hh,v 1.3 2003/10/13 19:31:56 fluxgen Exp $
+// $Id: KeyUtil.hh,v 1.3.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef FBTK_KEYUTIL_HH
 #define FBTK_KEYUTIL_HH
 
+#include <string>
 #include <X11/Xlib.h>
 #include <X11/keysym.h>
 
@@ -46,15 +47,30 @@ public:
     static void grabKey(unsigned int key, unsigned int mod);
 
     /**
+       Grab the specified button
+    */
+    static void grabButton(unsigned int button, unsigned int mod);
+
+    /**
        convert the string to the keysym
        @return the keysym corresponding to the string, or zero
     */
     static unsigned int getKey(const char *keystr);
 
     /**
+       convert the string to the button value
+    */
+    static unsigned int getButton(const char *buttonstr);
+
+    /**
        @return the modifier for the modstr else zero on failure.
     */
-    static unsigned int KeyUtil::getModifier(const char *modstr);
+    static unsigned int getModifier(const char *modstr);
+
+    /**
+       @return the button mask for the modstr, or zero on failure.
+    */
+    static unsigned int getButtonMask(const char *modstr);
 
     /**
        ungrabs all keys
@@ -76,10 +92,19 @@ public:
     */
     static unsigned int keycodeToModmask(unsigned int keycode);
 
+    static std::string keyToString(unsigned int key);
+    static std::string buttonToString(unsigned int button);
+    static std::string modifierToString(unsigned int modmask);
+
 private:
     void loadModmap();
 
     XModifierKeymap *m_modmap;
+
+    // These are all equivalent modmasks
+    // we just use a static array to make it simple to loop over
+    static const unsigned int ignored_modmasks[];
+
     static std::auto_ptr<KeyUtil> s_keyutil;
 };
 

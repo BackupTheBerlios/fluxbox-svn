@@ -20,23 +20,72 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WorkspaceCmd.hh,v 1.2 2003/07/01 09:47:41 fluxgen Exp $
+// $Id: WorkspaceCmd.hh,v 1.2.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef WORKSPACECMD_HH
 #define WORKSPACECMD_HH
-#include "Command.hh"
+#include "FbTk/Command.hh"
+#include "FbTk/Action.hh"
+#include "FbTk/ActionContext.hh"
 
-class NextWindowCmd: public FbTk::Command {
+#include <map>
+
+/**
+ * This is a full action, as it needs to keep keyboard
+ * focus as people alternate. Using a key motion action
+ * lets the actionhandler do the tricky stuff.
+ * Since prev and next happen in the same action, we 
+ * only create one CycleWindowAction that knows what's
+ * going on.
+ */
+class CycleWindowAction: public FbTk::Action {
 public:
-    explicit NextWindowCmd(int option):m_option(option) { }
+    CycleWindowAction(): 
+        FbTk::Action(true, true, true, true) {} 
+    ~CycleWindowAction();
+
+    void start(FbTk::ActionContext &context);
+    void motion(FbTk::ActionContext &context);
+    void stop(FbTk::ActionContext &context);
+
+    // associate this binding with a particular type of action
+    void addBinding(FbTk::ActionBinding *binding, bool forward, int options);
+    void resetBindings();
+
+private:
+    typedef struct CycleOptions {
+        CycleOptions(bool tforward, int toptions):
+            forward(tforward), options(toptions) {}
+
+        bool forward;
+        int options;
+    } CycleOptions;
+
+    typedef std::map<FbTk::ActionBinding *, CycleOptions *, FbTk::ltActionBinding> BindingOptions;
+
+    CycleOptions *getOptions(FbTk::ActionBinding *binding);
+
+    // we use this with the context to get the options
+    // and type of cycling (forward or reverse)
+    BindingOptions m_options;
+
+};
+
+
+// These are simply single-hit commands.
+// Stacked cycling cannot work with these.
+// If you need stacked, then you need to go through the action system
+class SimpleNextWindowCmd: public FbTk::Command {
+public:
+    explicit SimpleNextWindowCmd(int option):m_option(option) { }
     void execute();
 private:
     const int m_option;
 };
 
-class PrevWindowCmd: public FbTk::Command {
+class SimplePrevWindowCmd: public FbTk::Command {
 public:
-    explicit PrevWindowCmd(int option):m_option(option) { }
+    explicit SimplePrevWindowCmd(int option):m_option(option) { }
     void execute();
 private:
     const int m_option;

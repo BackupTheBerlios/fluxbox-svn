@@ -19,12 +19,12 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Theme.cc,v 1.20 2003/10/13 22:57:14 fluxgen Exp $
+// $Id: Theme.cc,v 1.20.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "Theme.hh"
 
 #include "XrmDatabaseHelper.hh"
-#include "App.hh"
+#include "ScreensApp.hh"
 #include "StringUtil.hh"
 #include "ThemeItems.hh"
 
@@ -49,14 +49,13 @@ ThemeManager &ThemeManager::instance() {
 }
 
 ThemeManager::ThemeManager():
-    m_max_screens(ScreenCount(FbTk::App::instance()->display())),
     m_verbose(false) {
 
 }
 
 bool ThemeManager::registerTheme(Theme &tm) {
     // valid screen num?
-    if (m_max_screens < tm.screenNum() || tm.screenNum() < 0)
+    if (!ScreensApp::instance()->isScreenUsed(tm.screenNum()))
         return false;
     // TODO: use find and return false if it's already there
     // instead of unique 

@@ -22,16 +22,17 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.hh,v 1.74 2003/10/05 06:28:47 rathnor Exp $
+// $Id: fluxbox.hh,v 1.74.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef	 FLUXBOX_HH
 #define	 FLUXBOX_HH
 
-#include "App.hh"
+#include "FbTk/ScreensApp.hh"
 #include "Resource.hh"
 #include "Timer.hh"
 #include "Observer.hh"
 #include "SignalHandler.hh"
+#include "Keys.hh"
 
 #include <X11/Xlib.h>
 #include <X11/Xresource.h>
@@ -62,16 +63,18 @@
 class AtomHandler;
 class FluxboxWindow;
 class WinClient;
-class Keys;
 class BScreen;
 class FbAtoms;
 
+namespace FbTk {
+class ActionHandler;
+};
 
 ///	main class for the window manager.
 /**
 	singleton type
 */
-class Fluxbox : public FbTk::App,
+class Fluxbox : public FbTk::ScreensApp,
                 public FbTk::SignalEventHandler,
                 public FbTk::Observer {
 public:
@@ -102,6 +105,9 @@ public:
 
     void addAtomHandler(AtomHandler *atomh);
     void removeAtomHandler(AtomHandler *atomh);
+
+    inline Keys &keys() { return m_key; }
+    inline const Keys &keys() const { return m_key; }
 
     /// obsolete
     enum Titlebar{SHADE=0, MINIMIZE, MAXIMIZE, CLOSE, STICK, MENU, EMPTY};		
@@ -147,8 +153,6 @@ public:
 
     inline unsigned int getCacheLife() const { return *m_rc_cache_life * 60000; }
     inline unsigned int getCacheMax() const { return *m_rc_cache_max; }
-
-    void watchKeyRelease(BScreen &screen, unsigned int mods);
 
     void setFocusedWindow(WinClient *w);
     // focus revert gets delayed until the end of the event handle
@@ -199,8 +203,6 @@ public:
     BScreen *mouseScreen() { return m_mousescreen; }
     // screen of window that last key event (i.e. focused window) went to
     BScreen *keyScreen() { return m_keyscreen; }
-    // screen we are watching for modifier changes
-    BScreen *watchingScreen() { return m_watching_screen; }
     const XEvent &lastEvent() const { return m_last_event; }
 
     /**
@@ -292,8 +294,6 @@ private:
 
     RedirectEvents m_redirect_events;
     BScreen *m_mousescreen, *m_keyscreen;
-    BScreen *m_watching_screen;
-    unsigned int m_watch_keyrelease;
 
     Atom m_fluxbox_pid;
 
@@ -304,7 +304,7 @@ private:
     int m_argc;
     XEvent m_last_event;
 
-    std::auto_ptr<Keys> m_key;
+    Keys m_key;
 
     //default arguments for titlebar left and right
     static Fluxbox::Titlebar s_titlebar_left[], s_titlebar_right[];

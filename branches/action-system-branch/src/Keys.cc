@@ -19,17 +19,21 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//$Id: Keys.cc,v 1.38 2003/10/05 07:19:30 rathnor Exp $
+//$Id: Keys.cc,v 1.38.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 
 #include "Keys.hh"
 
 #include "FbTk/StringUtil.hh"
-#include "FbTk/App.hh"
+#include "FbTk/ScreensApp.hh"
 #include "FbTk/Command.hh"
 #include "FbTk/KeyUtil.hh"
+#include "FbTk/EventManager.hh"
+#include "FbTk/Action.hh"
+#include "FbTk/ActionNode.hh"
 
 #include "CommandParser.hh"
+
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -73,27 +77,15 @@
 
 using namespace std;
 
-Keys::Keys(const char *filename):
-    m_display(FbTk::App::instance()->display())
+Keys::Keys(const char *filename)
 {
 
     if (filename != 0)
-        load(filename);
+        reconfigure(filename, false);
 }
 
 Keys::~Keys() {	
-
-    FbTk::KeyUtil::ungrabKeys();
-    deleteTree();
-}
-
-/// Destroys the keytree
-void Keys::deleteTree() {
-    while (!m_keylist.empty()) {
-        if (m_keylist.back())
-            delete m_keylist.back();		
-        m_keylist.pop_back();
-    }
+    // don't unregister handler, since it is against the root window
 }
 
 /** 
@@ -101,22 +93,31 @@ void Keys::deleteTree() {
     TODO: error checking
     @return true on success else false
 */
-bool Keys::load(const char *filename) {
+bool Keys::reconfigure(const char *filename, bool clear_old) {
     if (!filename)
         return false;
-	
+
+    FbTk::ScreensApp *sapp = FbTk::ScreensApp::instance();
+    Display *display = sapp->display();
+
+    // grab any appropriate screens
+    for (int i=0; i < sapp->numScreens(); ++i) {
+        if (sapp->isScreenUsed(i))
+            FbTk::EventManager::instance()->add(m_actionhandler, RootWindow(display, i));
+        else
+            FbTk::EventManager::instance()->remove(RootWindow(display, i));
+    }
+
     //ungrab all keys
-    FbTk::KeyUtil::ungrabKeys();
+    if (clear_old)
+        FbTk::KeyUtil::ungrabKeys();
 
-    //free memory of previous grabs
-    deleteTree();
+    XSync(FbTk::App::instance()->display(), False);
 
-    XSync(m_display, False);
-						
     //open the file
     ifstream infile(filename);
     if (!infile)
-        return false; // faild to open file
+        return false; // failed to open file
 
     int line=0;//current line, so we can tell the user where the fault is
 
@@ -124,212 +125,45 @@ bool Keys::load(const char *filename) {
         string linebuffer;
 
         getline(infile, linebuffer);
-
         line++;
-        vector<string> val;
-        //Parse arguments
-        FbTk::StringUtil::stringtok(val, linebuffer.c_str());
 
-        //must have at least 1 argument
-        if (val.size() <= 0)
+        // blank or comment
+        if (linebuffer.empty() || linebuffer[0] == '#')
             continue;
-			
-        if (val[0][0] == '#') //the line is commented
-            continue;
-		
-        unsigned int key=0, mod=0;		
-        char keyarg=0;
-        t_key *current_key=0, *last_key=0;
-		
-        for (unsigned int argc=0; argc<val.size(); argc++) {
 
-            if (val[argc][0] != ':') { // parse key(s)
-                keyarg++;
-                if (keyarg==1) //first arg is modifier
-                    mod = FbTk::KeyUtil::getModifier(val[argc].c_str());
-                else if (keyarg>1) {
+        size_t colon = linebuffer.find_first_of(':');
 
-                    //keyarg=0;
-                    int tmpmod = FbTk::KeyUtil::getModifier(val[argc].c_str());
-                    if(tmpmod)
-                        mod|=tmpmod; //If it's a modifier
-                    else { 
-                        key = FbTk::KeyUtil::getKey(val[argc].c_str()); // else get the key
-                        if (key == 0) {
-                            cerr<<"["<<filename<<"]: Invalid key/modifier on line("<<
-                                line<<"): "<<linebuffer<<endl;
-                            break; // get next line
-                        }
-                        if (!current_key) {
-                            current_key = new t_key(key, mod);
-                            last_key = current_key;
-                        } else { 
-                            t_key *temp_key = new t_key(key, mod);
-                            last_key->keylist.push_back(temp_key);
-                            last_key = temp_key;
-                        }
-                    }
-                }			
+        string keyspec = linebuffer.substr(0, colon);
+        string cmdspec = linebuffer.substr(colon+1);
 
-            } else { // parse command line
-                if (last_key == 0) {
-                    cerr<<"File: "<<filename<<". Error on line: "<<line<<endl;
-                    cerr<<"> "<<linebuffer<<endl;
-                    break;
-                }
-
-                const char *str = 
-                    FbTk::StringUtil::strcasestr(linebuffer.c_str(),
-                                                 val[argc].c_str() + 1); // +1 to skip ':'
-                if (str == 0) {
-                    cerr<<"File: "<<filename<<". Error on line: "<<line<<endl;
-                    cerr<<"> "<<linebuffer<<endl;
-                } else {
-
-                    last_key->m_command = CommandParser::instance().parseLine(str);
-
-                    if (*last_key->m_command == 0) {
-                        cerr<<"File: "<<filename<<". Error on line: "<<line<<endl;
-                        cerr<<"> "<<linebuffer<<endl;
-                    } else {
-                        // Add the keychain to list
-                        if (!mergeTree(current_key))
-                            cerr<<"Keys: Failed to merge keytree!"<<endl;
-                    }
-                }
-                delete current_key;
-                current_key = 0;
-                last_key = 0;
-
-                break; // dont process this linebuffer more
-            }  // end if
-        } // end for
-    } // end while eof
-
-    return true;
-}
-
-/**
- @return the KeyAction of the XKeyEvent
-*/
-void Keys::doAction(XKeyEvent &ke) {
-    static t_key *next_key = 0;
-    // Remove numlock, capslock and scrolllock
-    ke.state = FbTk::KeyUtil::cleanMods(ke.state);
-	
-    if (!next_key) {
-	
-        for (unsigned int i=0; i<m_keylist.size(); i++) {
-            if (*m_keylist[i] == ke) {
-                if (m_keylist[i]->keylist.size()) {
-                    next_key = m_keylist[i];
-                    break; //end for-loop 
-                } else {
-                    if (*m_keylist[i]->m_command != 0)
-                        m_keylist[i]->m_command->execute();
-                }
-            }
-        }
-	
-    } else { //check the nextkey
-        t_key *temp_key = next_key->find(ke);
-        if (temp_key) {
-            if (temp_key->keylist.size()) {
-                next_key = temp_key;								
+        FbTk::ActionNode *node = new FbTk::ActionNode();
+        FbTk::Action *action = 0;
+        if (!node->setFromString(keyspec)) {
+            delete node; // failed parse
+            cerr<<"File: "<<filename<<". Error in key spec on line "<<line<<": "<<keyspec<<endl;
+            cerr<<"> "<<linebuffer<<endl;
+        } else {
+            action = CommandParser::instance().parseAction(cmdspec, node);
+            if (!action) {
+                cerr<<"File: "<<filename<<". Error in action specification on line "<<line<<": "<<cmdspec<<endl;
+                cerr<<"> "<<linebuffer<<endl;
+                delete node;
             } else {
-                next_key = 0;
-                if (*temp_key->m_command != 0)
-                    temp_key->m_command->execute();
-            }
-        }  else  {
-            temp_key = next_key;		
-            next_key = 0;
-            if (*temp_key->m_command != 0)
-                temp_key->m_command->execute();
-                
-        }		
-    }
-}
+                node->setAction(action); 
+                m_actionhandler.registerAction(*node);
 
-/**
- deletes the tree and load configuration
- returns true on success else false
-*/
-bool Keys::reconfigure(const char *filename) {
-    deleteTree();
-    return load(filename);
-}
-
-/**
- Merges two chains and binds new keys
- @return true on success else false.
-*/
-bool Keys::mergeTree(t_key *newtree, t_key *basetree) {
-    if (basetree==0) {
-        unsigned int baselist_i=0;
-        for (; baselist_i<m_keylist.size(); baselist_i++) {
-            if (m_keylist[baselist_i]->mod == newtree->mod && 
-                m_keylist[baselist_i]->key == newtree->key) {
-                if (newtree->keylist.size() && *m_keylist[baselist_i]->m_command == 0) {
-                    //assumes the newtree only have one branch
-                    return mergeTree(newtree->keylist[0], m_keylist[baselist_i]);
-                } else
-                    break;
+                // don't let this node delete the action, since it has been 
+                // copied into the action handler, so we temporarily
+                // mark the action as global
+                bool global = action->isGlobal();
+                if (!global)
+                    action->setGlobal(true);
+                delete node;
+                if (!global)
+                    action->setGlobal(false);
             }
         }
-
-        if (baselist_i == m_keylist.size()) {
-            FbTk::KeyUtil::grabKey(newtree->key, newtree->mod);
-            m_keylist.push_back(new t_key(newtree));			
-            if (newtree->keylist.size())
-                return mergeTree(newtree->keylist[0], m_keylist.back());
-            return true;
-        }
-		
-    } else {
-        unsigned int baselist_i = 0;
-        for (; baselist_i<basetree->keylist.size(); baselist_i++) {
-            if (basetree->keylist[baselist_i]->mod == newtree->mod &&
-                basetree->keylist[baselist_i]->key == newtree->key) {
-                if (newtree->keylist.size()) {
-                    //assumes the newtree only have on branch
-                    return mergeTree(newtree->keylist[0], basetree->keylist[baselist_i]);
-                } else
-                    return false;
-            }					
-        }
-        //if it wasn't in the list grab the key and add it to the list
-        if (baselist_i==basetree->keylist.size()) {			
-            FbTk::KeyUtil::grabKey(newtree->key, newtree->mod);
-            basetree->keylist.push_back(new t_key(newtree));
-            if (newtree->keylist.size())
-                return mergeTree(newtree->keylist[0], basetree->keylist.back());
-            return true;		
-        }		
-    }
-	
-    return false;
-}
-
-Keys::t_key::t_key(unsigned int key_, unsigned int mod_, FbTk::RefCount<FbTk::Command> command) {
-    key = key_;
-    mod = mod_;	
-    m_command = command;
-}
-
-Keys::t_key::t_key(t_key *k) {
-    key = k->key;
-    mod = k->mod;
-    m_command = k->m_command;
-}
-
-Keys::t_key::~t_key() {	
-    while (!keylist.empty()) {		
-        t_key *k = keylist.back();
-        if (k != 0) { // make sure we don't have a bad key pointer
-            delete k;
-            keylist.pop_back();
-        }
-    }
-
+    } // end while eof
+    
+    return true;
 }

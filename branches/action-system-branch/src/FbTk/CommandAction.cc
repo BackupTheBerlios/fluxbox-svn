@@ -1,6 +1,6 @@
-// FbCommandFactory.hh for Fluxbox Window manager
+// CommandAction.cc for FbTk - Fluxbox Toolkit
 // Copyright (c) 2003 Henrik Kinnunen (fluxgen at users.sourceforge.net)
-//                and Simon Bowden (rathnor at users.sourceforge.net)
+//                and Simon Bowden    (rathnor at users.sourceforge.net)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
@@ -14,34 +14,36 @@
 //
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL
+// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.  IN NO EVENT SHALL
 // THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 // LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbCommandFactory.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
 
-#include "CommandParser.hh"
-#include "WorkspaceCmd.hh"
+#include "CommandAction.hh"
 
 namespace FbTk {
-  class ActionBinding;
+
+CommandAction::CommandAction(Command *cmd, bool delete_after)
+    : Action(true, false, false), // just a start action
+      m_command(cmd), m_delete_after(delete_after)
+{}
+
+CommandAction::~CommandAction() {
+    if (m_delete_after)
+        delete m_command;
+    m_command = 0;
 }
 
+void CommandAction::execute() {
+    m_command->execute();
+}
 
-class FbCommandFactory: public CommandFactory {
-public:
-    FbTk::Command *stringToCommand(const std::string &command, 
-                                   const std::string &arguments);
+void CommandAction::start(ActionContext &context) {
+    // ignores context
 
-    FbTk::Action  *stringToAction (const std::string &action, 
-                                   const std::string &arguments,
-                                   FbTk::ActionBinding *binding);
+    m_command->execute();
+}
 
-private:
-    FbCommandFactory();
-    static FbCommandFactory s_autoreg; ///< autoregister variable
-
-    CycleWindowAction m_cyclewindows;
-};
+}; // end namespace FbTk

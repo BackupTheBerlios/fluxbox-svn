@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.239 2003/10/28 17:39:59 rathnor Exp $
+// $Id: Screen.cc,v 1.239.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 
 #include "Screen.hh"
@@ -53,7 +53,6 @@
 #include "FbWinFrame.hh"
 #include "FbWindow.hh"
 #include "Strut.hh"
-#include "SlitTheme.hh"
 #include "CommandParser.hh"
 #include "MenuTheme.hh"
 #include "IconMenuItem.hh"
@@ -68,6 +67,7 @@
 #endif // HAVE_CONFIG_H
 
 #ifdef SLIT
+#include "SlitTheme.hh"
 #include "Slit.hh"
 #else
 // fill it in
@@ -298,8 +298,6 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
 
     Display *disp = FbTk::App::instance()->display();
 
-    initXinerama();
-
     // setup error handler to catch "screen already managed by other wm"
     XErrorHandler old = XSetErrorHandler((XErrorHandler) anotherWMRunning);
 
@@ -315,6 +313,8 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
     if (! managed)
         return;
 	
+    initXinerama();
+
     I18n *i18n = I18n::instance();
 	
     fprintf(stderr, i18n->getMessage(FBNLS::ScreenSet, FBNLS::ScreenManagingScreen,
@@ -833,9 +833,10 @@ int BScreen::removeLastWorkspace() {
 
 
 void BScreen::changeWorkspaceID(unsigned int id) {
+    unsigned int currid = m_current_workspace->workspaceID();
 
     if (! m_current_workspace || id >= m_workspaces_list.size() ||
-        id == m_current_workspace->workspaceID())
+        id == currid)
         return;
 
     XSync(FbTk::App::instance()->display(), true);
@@ -844,12 +845,14 @@ void BScreen::changeWorkspaceID(unsigned int id) {
     FluxboxWindow *focused = 0;
     if (focused_client)
         focused = focused_client->fbwindow();
-        
+
     if (focused && focused->isMoving()) {
         if (doOpaqueMove())
             reassociateWindow(focused, id, true);
+        
         // don't reassociate if not opaque moving
         focused->pauseMoving();
+
     }
 
     // reassociate all windows that are stuck to the new workspace
@@ -864,12 +867,12 @@ void BScreen::changeWorkspaceID(unsigned int id) {
 
     currentWorkspace()->hideAll();
 
-    workspacemenu->setItemSelected(currentWorkspace()->workspaceID() + 2, false);
+    workspacemenu->setItemSelected(currid + 2, false);
 
     // set new workspace
     m_current_workspace = getWorkspace(id);
 
-    workspacemenu->setItemSelected(currentWorkspace()->workspaceID() + 2, true);
+    workspacemenu->setItemSelected(id + 2, true);
     // This is a little tricks to reduce flicker 
     // this way we can set focus pixmap on frame before we show it
     // and using ExposeEvent to redraw without flicker
@@ -885,9 +888,13 @@ void BScreen::changeWorkspaceID(unsigned int id) {
     else
         Fluxbox::instance()->revertFocus(*this);
 
-    if (focused && focused->isMoving())
-        focused->resumeMoving();
+    if (focused && focused->isMoving()) {
+        if (id == focused->workspaceNumber())
+            focused->show();
 
+        XSync(FbTk::App::instance()->display(), True);
+        focused->resumeMoving();
+    }
     updateNetizenCurrentWorkspace();
 
 }
@@ -1255,6 +1262,25 @@ void BScreen::reassociateWindow(FluxboxWindow *w, unsigned int wkspc_id,
 }
 
 
+void BScreen::stopFocusCycling() {
+    if (cycling_focus) {
+        cycling_focus = false;
+        cycling_last = 0;
+        // put currently focused window to top
+        // the iterator may be invalid if the window died
+        // in which case we'll do a proper revert focus
+        if (cycling_window != focused_list.end()) {
+            WinClient *client = *cycling_window;
+            focused_list.erase(cycling_window);
+            focused_list.push_front(client);
+            client->fbwindow()->raise();
+        } else {
+            Fluxbox::instance()->revertFocus(*this);
+        }
+    }
+
+}
+
 void BScreen::nextFocus(int opts) {
     const int num_windows = currentWorkspace()->numberOfWindows();
 
@@ -1270,6 +1296,7 @@ void BScreen::nextFocus(int opts) {
             // already cycling, so restack to put windows back in their proper order
             m_layermanager.restack();
         }
+
         // if it is stacked, we want the highest window in the focused list
         // that is on the same workspace
         FocusedWindows::iterator it = cycling_window;
@@ -1851,7 +1878,7 @@ bool BScreen::parseMenuFile(ifstream &file, FbTk::Menu &menu, int &row) {
             else { // ok, if we didn't find any special menu item we try with command parser
                 // we need to attach command with arguments so command parser can parse it
                 string line = str_key + " " + str_cmd;
-                FbTk::RefCount<FbTk::Command> command(CommandParser::instance().parseLine(line));
+                FbTk::RefCount<FbTk::Command> command(CommandParser::instance().parseCommand(line));
                 if (*command != 0)
                     menu.insert(str_label.c_str(), command);
             }
@@ -2208,26 +2235,6 @@ void BScreen::renderGeomWindow() {
 
 }
 
-/**
-   Called when a set of watched modifiers has been released
-*/
-void BScreen::notifyReleasedKeys(XKeyEvent &ke) {
-    if (cycling_focus) {
-        cycling_focus = false;
-        cycling_last = 0;
-        // put currently focused window to top
-        // the iterator may be invalid if the window died
-        // in which case we'll do a proper revert focus
-        if (cycling_window != focused_list.end()) {
-            WinClient *client = *cycling_window;
-            focused_list.erase(cycling_window);
-            focused_list.push_front(client);
-            client->fbwindow()->raise();
-        } else {
-            Fluxbox::instance()->revertFocus(*this);
-        }
-    }
-}
 
 /**
  * Used to find out which window was last focused on the given workspace

@@ -1,7 +1,7 @@
-// FbCommandFactory.hh for Fluxbox Window manager
+// ScreensApp.hh for fluxbox 
 // Copyright (c) 2003 Henrik Kinnunen (fluxgen at users.sourceforge.net)
-//                and Simon Bowden (rathnor at users.sourceforge.net)
-//
+//                and Simon Bowden    (rathnor at users.sourceforge.net)
+// 
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
@@ -20,28 +20,53 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbCommandFactory.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: ScreensApp.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
 
-#include "CommandParser.hh"
-#include "WorkspaceCmd.hh"
+#ifndef FBTK_SCREENSAPP_HH
+#define FBTK_SCREENSAPP_HH
+
+#include "App.hh"
 
 namespace FbTk {
-  class ActionBinding;
-}
 
 
-class FbCommandFactory: public CommandFactory {
+/**
+ * This class is intended to be a general representation for 
+ * screens that can be used for FbTk to be aware of multiple
+ * screens. 
+ * It may be extended to handle more screen data when necessary.
+ */
+class ScreensApp : public App {
 public:
-    FbTk::Command *stringToCommand(const std::string &command, 
-                                   const std::string &arguments);
+    /// @return singleton instance of App
+    static ScreensApp *instance();
 
-    FbTk::Action  *stringToAction (const std::string &action, 
-                                   const std::string &arguments,
-                                   FbTk::ActionBinding *binding);
+    ScreensApp(const char *displayname=0);
+    virtual ~ScreensApp();
+
+    /**
+     * Does this app use the given screen?
+     */
+    bool isScreenUsed(int screen) const;
+
+    void setScreenUsed(int screen, bool value = true);
+
+    // same as countscreens, only no call to display etc
+    // this is NOT the number of used screens
+    inline int numScreens() const { return m_numscreens; }
 
 private:
-    FbCommandFactory();
-    static FbCommandFactory s_autoreg; ///< autoregister variable
+    static ScreensApp *s_screensapp;
 
-    CycleWindowAction m_cyclewindows;
+    int m_numscreens;
+
+    // bool array saying whether given screen is used by this app
+    bool *m_active_screens; 
+
 };
+
+
+}; // end namespace FbTk
+
+
+#endif // FBTK_SCREENSAPP_HH

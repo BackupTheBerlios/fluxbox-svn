@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbCommandFactory.cc,v 1.19 2003/10/25 22:11:22 fluxgen Exp $
+// $Id: FbCommandFactory.cc,v 1.19.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "FbCommandFactory.hh"
 
@@ -34,6 +34,7 @@
 
 #include "FbTk/StringUtil.hh"
 #include "FbTk/MacroCommand.hh"
+#include "FbTk/CommandAction.hh"
 
 #include <string>
 #include <sstream>
@@ -64,6 +65,7 @@ FbCommandFactory::FbCommandFactory() {
         "minimizewindow",
         "moveto",
         "move",
+        "moveincr",
         "movedown",
         "moveleft",
         "moveright",
@@ -83,6 +85,7 @@ FbCommandFactory::FbCommandFactory() {
         "reconfigure",
         "resizeto",
         "resize",
+        "resizeincr",
         "resizehorizontal",
         "resizevertical",
         "restart",
@@ -95,6 +98,10 @@ FbCommandFactory::FbCommandFactory() {
         "shade",
         "shadewindow",
         "showdesktop",
+        "simplenextgroup",
+        "simpleprevgroup",
+        "simplenextwindow",
+        "simpleprevwindow",
         "stick",
         "stickwindow",
         "toggledecor",
@@ -140,7 +147,7 @@ FbTk::Command *FbCommandFactory::stringToCommand(const std::string &command,
         return new CurrentWindowCmd(&FluxboxWindow::maximizeVertical);
     else if (command == "maximizehorizontal")
         return new CurrentWindowCmd(&FluxboxWindow::maximizeHorizontal);
-    else if (command == "resize") {
+    else if (command == "resizeincr") {
         std::istringstream is(arguments); 
         int dx = 0, dy = 0;
         is >> dx >> dy;
@@ -162,7 +169,7 @@ FbTk::Command *FbCommandFactory::stringToCommand(const std::string &command,
        is >> dx >> dy;
        return new MoveToCmd(dx,dy);    
     }
-    else if (command == "move") {
+    else if (command == "moveincr") {
         std::istringstream is(arguments);
         int dx = 0, dy = 0;
         is >> dx >> dy;
@@ -218,14 +225,15 @@ FbTk::Command *FbCommandFactory::stringToCommand(const std::string &command,
         if (!arguments.empty())
             num = atoi(arguments.c_str());
         return new JumpToWorkspaceCmd(num-1);
-    } else if (command == "nextwindow")
-        return new NextWindowCmd(atoi(arguments.c_str()));
-    else if (command == "prevwindow")
-        return new PrevWindowCmd(atoi(arguments.c_str()));
-    else if (command == "nextgroup")
-        return new NextWindowCmd(atoi(arguments.c_str()) ^ BScreen::CYCLEGROUPS);
-    else if (command == "prevgroup")
-        return new PrevWindowCmd(atoi(arguments.c_str()) ^ BScreen::CYCLEGROUPS);
+    } else if (command == "simplenextwindow")
+        // called simple to avoid confusion with full-blown action
+        return new SimpleNextWindowCmd(atoi(arguments.c_str()));
+    else if (command == "simpleprevwindow")
+        return new SimplePrevWindowCmd(atoi(arguments.c_str()));
+    else if (command == "simplenextgroup")
+        return new SimpleNextWindowCmd(atoi(arguments.c_str()) ^ BScreen::CYCLEGROUPS);
+    else if (command == "simpleprevgroup")
+        return new SimplePrevWindowCmd(atoi(arguments.c_str()) ^ BScreen::CYCLEGROUPS);
     else if (command == "arrangewindows")
         return new ArrangeWindowsCmd();
     else if (command == "showdesktop")
@@ -277,3 +285,37 @@ FbTk::Command *FbCommandFactory::stringToCommand(const std::string &command,
     }
     return 0;
 }
+
+// Some actions require the binding they are associated 
+FbTk::Action  *FbCommandFactory::stringToAction(const std::string &action, 
+                                                const std::string &arguments,
+                                                FbTk::ActionBinding *binding) {
+
+    if (action == "nextwindow") {
+        m_cyclewindows.addBinding(binding, true, atoi(arguments.c_str()));
+        return &m_cyclewindows;
+    } else if (action == "prevwindow") {
+        m_cyclewindows.addBinding(binding, false, atoi(arguments.c_str()));
+        return &m_cyclewindows;
+    } else if (action == "nextgroup") {
+        m_cyclewindows.addBinding(binding, true, atoi(arguments.c_str()) ^ BScreen::CYCLEGROUPS);
+        return &m_cyclewindows;
+    } else if (action == "prevgroup") {
+        m_cyclewindows.addBinding(binding, false, atoi(arguments.c_str()) ^ BScreen::CYCLEGROUPS);
+        return &m_cyclewindows;
+    } else if (action == "move") {
+        return new MoveAction();
+    } else if (action == "resize") {
+        return new ResizeAction();
+    } else {
+        // no specific actions, see if there is a command we can
+        // wrap into an action
+
+        FbTk::Command *cmd = stringToCommand(action, arguments);
+        if (cmd == 0)
+            return 0;
+        else
+            return new FbTk::CommandAction(cmd);
+    }
+}
+

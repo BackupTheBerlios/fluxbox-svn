@@ -1,5 +1,5 @@
 // CurrentWindowCmd.hh for Fluxbox - an X11 Window manager
-// Copyright (c) 2003 Henrik Kinnunen (fluxgen{<a*t>}users.sourceforge.net)
+// Copyright (c) 2003 Henrik Kinnunen (fluxgen at users.sourceforge.net)
 //                and Simon Bowden (rathnor at users.sourceforge.net)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a
@@ -20,25 +20,40 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: CurrentWindowCmd.hh,v 1.6 2003/10/25 22:11:22 fluxgen Exp $
+// $Id: CurrentWindowCmd.hh,v 1.6.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef CURRENTWINDOWCMD_HH
 #define CURRENTWINDOWCMD_HH
 
 #include "Command.hh"
+#include "FbTk/Action.hh"
+#include "FbTk/WindowTools.hh"
 
 class FluxboxWindow;
 class WinClient;
+class BScreen;
 
 /// command that calls FluxboxWindow::<the function> on execute()
 /// similar to FbTk::SimpleCommand<T>
 class CurrentWindowCmd: public FbTk::Command {
 public:
-    typedef void (FluxboxWindow::* Action)();
-    explicit CurrentWindowCmd(Action action);
+    typedef void (FluxboxWindow::* WindowOp)();
+    explicit CurrentWindowCmd(WindowOp windowop);
     void execute();
 private:
-    Action m_action;
+    WindowOp m_windowop;
+};
+
+/// command that calls BScreen::<the function> on execute()
+/// similar to FbTk::SimpleCommand<T>
+class CurrentScreenCmd: public FbTk::Command {
+public:
+    typedef void (BScreen::* ScreenOp)();
+    explicit CurrentScreenCmd(ScreenOp screenop, bool use_keyscreen);
+    void execute();
+private:
+    ScreenOp m_screenop;
+    bool m_keyscreen; // false = mouse screen
 };
 
 /// helper class for window commands
@@ -67,6 +82,68 @@ protected:
     void real_execute();
 private:
     const int m_workspace_num;
+};
+
+class FbWindowTransform : public FbTk::WindowTransform {
+public:
+    FbWindowTransform();
+
+    void moveWindow(int x, int y);
+    void resizeWindow(unsigned int width, unsigned int height);
+    void moveResizeWindow(int x, int y, unsigned int width, unsigned int height);
+
+    void setFbWindow(FluxboxWindow *window);
+
+    // current window being manipulated
+    inline FluxboxWindow *fbwindow() { return m_window; }
+    inline BScreen *screen() { return m_screen; }
+
+private:
+    FluxboxWindow *m_window;
+    BScreen *m_screen;
+
+};
+
+// user drags the window to move it
+class MoveAction : public FbTk::Action, public FbWindowTransform {
+public:
+    MoveAction();
+    ~MoveAction();
+
+    virtual void start(FbTk::ActionContext &context);
+    virtual void motion(FbTk::ActionContext &context);
+    virtual void stop(FbTk::ActionContext &context);
+
+    Cursor cursor();
+
+protected:
+
+    int m_grab_x, m_grab_y;
+};
+
+// user drags the window to resize it
+class ResizeAction : public MoveAction {
+public:
+    ResizeAction();
+    ~ResizeAction();
+
+    void start(FbTk::ActionContext &context);
+    void motion(FbTk::ActionContext &context);
+    void stop(FbTk::ActionContext &context);
+
+    enum ResizeCorner {
+      LEFTTOP,
+      LEFTBOTTOM,
+      RIGHTBOTTOM,
+      RIGHTTOP
+    };
+
+    Cursor cursor();
+
+private:
+
+    ResizeCorner m_corner;
+
 };
 
 // move cmd, relative position

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.hh,v 1.125 2003/09/29 12:53:58 rathnor Exp $
+// $Id: Screen.hh,v 1.125.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #ifndef	 SCREEN_HH
 #define	 SCREEN_HH
@@ -53,6 +53,7 @@ class WinButtonTheme;
 class WinClient;
 class Workspace;
 class Strut;
+
 class Slit;
 
 namespace FbTk {
@@ -244,6 +245,9 @@ public:
                          bool changeworkspace=true);
     void reassociateWindow(FluxboxWindow *window, unsigned int workspace_id, 
                            bool ignore_sticky);
+
+    void stopFocusCycling();
+
     void prevFocus() { prevFocus(0); }
     void nextFocus() { nextFocus(0); }
     void prevFocus(int options);
@@ -263,7 +267,6 @@ public:
     void showGeometry(unsigned int width, unsigned int height);
     void hideGeometry();
 
-    void notifyReleasedKeys(XKeyEvent &ke);
 
     void setLayer(FbTk::XLayerItem &item, int layernum);
     // remove? no, items are never removed from their layer until they die

@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ToolFactory.cc,v 1.1 2003/10/13 23:37:41 fluxgen Exp $
+// $Id: ToolFactory.cc,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "ToolFactory.hh"
 
@@ -104,7 +104,7 @@ ToolbarItem *ToolFactory::create(const std::string &name, const FbTk::FbWindow &
     } else if (name == "nextworkspace" || 
                name == "prevworkspace") {
 
-        FbTk::RefCount<FbTk::Command> cmd(CommandParser::instance().parseLine(name));
+        FbTk::RefCount<FbTk::Command> cmd(CommandParser::instance().parseCommand(name));
         if (*cmd == 0) // we need a command
             return 0;
 
@@ -123,7 +123,7 @@ ToolbarItem *ToolFactory::create(const std::string &name, const FbTk::FbWindow &
     } else if (name == "nextwindow" || 
                name == "prevwindow") {
 
-        FbTk::RefCount<FbTk::Command> cmd(CommandParser::instance().parseLine(name));
+        FbTk::RefCount<FbTk::Command> cmd(CommandParser::instance().parseCommand(name));
         if (*cmd == 0) // we need a command
             return 0;
 

@@ -1,7 +1,7 @@
-// FbCommandFactory.hh for Fluxbox Window manager
+// Action.cc for fluxbox 
 // Copyright (c) 2003 Henrik Kinnunen (fluxgen at users.sourceforge.net)
-//                and Simon Bowden (rathnor at users.sourceforge.net)
-//
+//                and Simon Bowden    (rathnor at users.sourceforge.net)
+// 
 // Permission is hereby granted, free of charge, to any person obtaining a
 // copy of this software and associated documentation files (the "Software"),
 // to deal in the Software without restriction, including without limitation
@@ -20,28 +20,22 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbCommandFactory.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Action.cc,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
 
-#include "CommandParser.hh"
-#include "WorkspaceCmd.hh"
+#include "Action.hh"
+#include "ActionContext.hh"
 
 namespace FbTk {
-  class ActionBinding;
+
+Action::Action(bool start, bool stop, bool motion, bool isglobal) :
+    has_start(start),
+    has_stop(stop),
+    has_motion(motion),
+    global(isglobal)
+{}
+
+Cursor Action::cursor() {
+    return None;
 }
 
-
-class FbCommandFactory: public CommandFactory {
-public:
-    FbTk::Command *stringToCommand(const std::string &command, 
-                                   const std::string &arguments);
-
-    FbTk::Action  *stringToAction (const std::string &action, 
-                                   const std::string &arguments,
-                                   FbTk::ActionBinding *binding);
-
-private:
-    FbCommandFactory();
-    static FbCommandFactory s_autoreg; ///< autoregister variable
-
-    CycleWindowAction m_cyclewindows;
-};
+}; // end namespace FbTk

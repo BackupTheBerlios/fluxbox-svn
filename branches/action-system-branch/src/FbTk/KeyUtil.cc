@@ -19,12 +19,18 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: KeyUtil.cc,v 1.4 2003/10/13 19:31:56 fluxgen Exp $
+// $Id: KeyUtil.cc,v 1.4.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "KeyUtil.hh"
-#include "App.hh"
+#include "ScreensApp.hh"
 
 #include <string>
+#include <iostream>
+
+#include <X11/X.h>
+#include <stdlib.h>
+
+using namespace std;
 
 namespace FbTk {
 
@@ -35,6 +41,21 @@ KeyUtil &KeyUtil::instance() {
         s_keyutil.reset(new KeyUtil());
     return *s_keyutil.get();
 }
+
+// This is an array of modmasks which are all
+// equivalent - grabs are done with all of these
+const unsigned int KeyUtil::ignored_modmasks[] = 
+{
+    None,     // no mods
+    LockMask, // capslock
+    Mod2Mask, // numlock
+    Mod5Mask, // scroll lock
+    LockMask|Mod2Mask,
+    LockMask|Mod5Mask,
+    Mod2Mask|Mod5Mask,
+    LockMask|Mod2Mask|Mod5Mask,
+    None // again to indicate the end
+};
 
 
 KeyUtil::KeyUtil()
@@ -66,56 +87,58 @@ void KeyUtil::loadModmap() {
  and with numlock,capslock and scrollock
 */
 void KeyUtil::grabKey(unsigned int key, unsigned int mod) {
-    Display *display = App::instance()->display();
+    ScreensApp *sapp = ScreensApp::instance();
+    Display *display = sapp->display();
     const unsigned int capsmod = LockMask;
     const unsigned int nummod = Mod2Mask;
     const unsigned int scrollmod = Mod5Mask;
     
-    for (int screen=0; screen<ScreenCount(display); screen++) {
+    for (int screen=0; screen<sapp->numScreens(); screen++) {
+        // only grab on screens that we're active on
+        if (!sapp->isScreenUsed(screen))
+            continue;
+
+        Window root = RootWindow(display, screen);
+	cerr<<"grab("<<screen<<", key="<<key<<", mod="<<mod<<")"<<endl;
+
+        for (int m = 0; m == 0 || ignored_modmasks[m] != None; ++m)
+            XGrabKey(display, key, mod|ignored_modmasks[m],
+                     root, True,
+                     GrabModeAsync, GrabModeAsync);
+
+    }
+}
+
+/**
+ Grabs a button with the modifier
+ and with numlock,capslock and scrollock
+*/
+void KeyUtil::grabButton(unsigned int button, unsigned int mod) {
+
+    ScreensApp *sapp = ScreensApp::instance();
+    Display *display = sapp->display();
+
+    const unsigned int capsmod = LockMask;
+    const unsigned int nummod = Mod2Mask;
+    const unsigned int scrollmod = Mod5Mask;
+    unsigned int event_mask = ButtonPressMask|ButtonReleaseMask|PointerMotionMask;
+
+    for (int screen=0; screen<sapp->numScreens(); screen++) {
+        // only grab on screens that we're active on
+        if (!sapp->isScreenUsed(screen))
+            continue;
 		
         Window root = RootWindow(display, screen);
-		
-        XGrabKey(display, key, mod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);
+	cerr<<"grabButton("<<screen<<", button="<<button<<", mod="<<mod<<")"<<endl;
+
+        for (int m = 0; m == 0 || ignored_modmasks[m] == None; ++m)
+            XGrabButton(display, button, mod|ignored_modmasks[m],
+                        root, event_mask, True,
+                        GrabModeAsync, GrabModeAsync,
+                        root, None);
 						
-        // Grab with numlock, capslock and scrlock	
-
-        //numlock	
-        XGrabKey(display, key, mod|nummod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);		
-        //scrolllock
-        XGrabKey(display, key, mod|scrollmod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);	
-        //capslock
-        XGrabKey(display, key, mod|capsmod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);
-	
-        //capslock+numlock
-        XGrabKey(display, key, mod|capsmod|nummod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);
-
-        //capslock+scrolllock
-        XGrabKey(display, key, mod|capsmod|scrollmod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);						
-	
-        //capslock+numlock+scrolllock
-        XGrabKey(display, key, mod|capsmod|scrollmod|nummod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);						
-
-        //numlock+scrollLock
-        XGrabKey(display, key, mod|nummod|scrollmod,
-                 root, True,
-                 GrabModeAsync, GrabModeAsync);
-	
     }
-			
+
 }
 
 /**
@@ -127,6 +150,22 @@ unsigned int KeyUtil::getKey(const char *keystr) {
     return XKeysymToKeycode(App::instance()->display(),
                             XStringToKeysym(keystr));
 }
+
+/**
+   convert the string to the button value
+*/
+unsigned int KeyUtil::getButton(const char *buttonstr) {
+    if (strncasecmp(buttonstr, "Button", 6) != 0)
+        return 0;
+
+    int n = atoi(buttonstr+6);
+    // sanity check
+    if (n < 1 || n >= 10)
+        return 0;
+    else return Button1 + n-1;
+    
+}
+
 
 /**
  @return the modifier for the modstr else zero on failure.
@@ -160,10 +199,19 @@ unsigned int KeyUtil::getModifier(const char *modstr) {
     return 0;	
 }
 
+/**
+   @return the button mask for the modstr, or zero on failure.
+*/
+unsigned int KeyUtil::getButtonMask(const char *modstr) {
+    return 0;
+}
+
+
 /// Ungrabs the keys
 void KeyUtil::ungrabKeys() {
-    Display * display = App::instance()->display();
-    for (int screen=0; screen<ScreenCount(display); screen++) {
+    ScreensApp *sapp = ScreensApp::instance();
+    Display * display = sapp->display();
+    for (int screen=0; screen<sapp->numScreens(); screen++) {
         XUngrabKey(display, AnyKey, AnyModifier,
                    RootWindow(display, screen));		
     }
@@ -186,6 +234,66 @@ unsigned int KeyUtil::keycodeToModmask(unsigned int keycode) {
     }
     // no luck
     return 0;
+}
+
+string KeyUtil::keyToString(unsigned int key) {
+    KeySym sym = XKeycodeToKeysym(App::instance()->display(), static_cast<KeyCode>(key), 0);
+    char tmp[15];
+    if (sym == 0) {
+        sprintf(tmp, "Keycode%d", key);
+        return tmp;
+    }
+
+    const char * str = XKeysymToString(sym);
+    if (!str) {
+        sprintf(tmp, "Keysym%d", sym);
+        return tmp;
+    } else
+        return str;
+}
+
+string KeyUtil::buttonToString(unsigned int button) {
+    char str[8];
+    if (button > 1 && button < 10) {
+        sprintf(str, "Button%d", button);
+        return str;
+    } else
+        return "";
+}
+
+string KeyUtil::modifierToString(unsigned int modmask) {
+    // non-standardised modifier names
+    const char *mods[] = {
+        "Shift",
+        "Lock",
+        "Control"
+    };
+    int specmods = 3;
+
+    if (modmask == 0)
+        return "None";
+
+    string result;
+    bool first = true;
+    char tmp[6];
+
+    int i=0;
+    while (modmask != 0) {
+        if (modmask % 2) {
+            if (!first)
+                result += " ";
+            if (i < specmods)
+                result += mods[i];
+            else {
+                sprintf(tmp, "Mod%d", (i-specmods+1));
+                result += tmp;
+            }
+            first = false;
+        }
+        modmask >>= 1;
+        ++i;
+    }
+    return result;
 }
 
 

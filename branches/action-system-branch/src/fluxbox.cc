@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.201 2003/10/28 02:17:03 rathnor Exp $
+// $Id: fluxbox.cc,v 1.201.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "fluxbox.hh"
 
@@ -396,7 +396,7 @@ Fluxbox::Titlebar Fluxbox::s_titlebar_left[] = {STICK};
 Fluxbox::Titlebar Fluxbox::s_titlebar_right[] = {MINIMIZE, MAXIMIZE, CLOSE};
 
 Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfilename)
-    : FbTk::App(dpy_name),
+    : FbTk::ScreensApp(dpy_name),
       m_fbatoms(new FbAtoms()),
       m_resourcemanager(rcfilename, true), 
       // TODO: shouldn't need a separate one for screen
@@ -423,7 +423,6 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
       m_focused_window(0),
       m_mousescreen(0),
       m_keyscreen(0),
-      m_watching_screen(0), m_watch_keyrelease(0),
       m_last_time(0),
       m_rc_file(rcfilename ? rcfilename : ""),
       m_argv(argv), m_argc(argc),
@@ -517,17 +516,22 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
 #endif // HAVE_GETPID
 
     // Allocate screens
-    for (int i = 0; i < ScreenCount(display()); i++) {
+    for (int i = 0; i < numScreens(); i++) {
         char scrname[128], altscrname[128];
         sprintf(scrname, "session.screen%d", i);
         sprintf(altscrname, "session.Screen%d", i);
+        
+        setScreenUsed(i); // pretend it is used for initialisation
+
         BScreen *screen = new BScreen(m_screen_rm.lock(), 
                                       scrname, altscrname,
                                       i, getNumberOfLayers());
         if (! screen->isScreenManaged()) {
             delete screen;			
+            setScreenUsed(i, false); // tough luck
             continue;
         }
+
 
 #ifdef HAVE_GETPID
         pid_t bpid = getpid();
@@ -576,9 +580,6 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
                      "Make sure you don't have another window manager running.");
     }
 
-    // setup theme manager to have our style file ready to be scanned
-    FbTk::ThemeManager::instance().load(getStyleFilename());
-
     XSynchronize(disp, False);
     XSync(disp, False);
 
@@ -589,8 +590,8 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
     m_timer.setCommand(reconf_cmd);
     m_timer.fireOnce(true);
 
-    // Create keybindings handler and load keys file	
-    m_key.reset(new Keys(StringUtil::expandFilename(*m_rc_keyfile).c_str()));
+    // load keys file	
+    m_key.reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
 
     m_resourcemanager.unlock();
     ungrab();
@@ -1169,7 +1170,7 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
     m_keyscreen = searchScreen(ke.window);
 
     m_mousescreen = keyScreen();
-    Window root, ignorew; 
+    Window root, ignorew;
     int ignored;
     if (!XQueryPointer(FbTk::App::instance()->display(),
                        ke.window, &root, &ignorew, &ignored, &ignored, 
@@ -1180,39 +1181,6 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
     if (keyScreen() == 0 || mouseScreen() == 0)
         return;
 
-    
-    switch (ke.type) {
-    case KeyPress:
-        m_key->doAction(ke);
-    break;
-    case KeyRelease: {
-        // we ignore most key releases unless we need to use
-        // a release to stop something (e.g. window cycling).
-
-        // we notify if _all_ of the watched modifiers are released
-        if (m_watching_screen && m_watch_keyrelease) {
-            // mask the mod of the released key out
-            // won't mask anything if it isn't a mod
-            ke.state &= ~FbTk::KeyUtil::keycodeToModmask(ke.keycode);
-            
-            if ((m_watch_keyrelease & ke.state) == 0) {
-                
-                m_watching_screen->notifyReleasedKeys(ke);
-                XUngrabKeyboard(FbTk::App::instance()->display(), CurrentTime);
-                
-                // once they are released, we drop the watch
-                m_watching_screen = 0;
-                m_watch_keyrelease = 0;
-            }
-        }
-
-        break;
-    }	
-    default:
-        break;
-    }
-	
-	
 }
 
 /// handle system signals
@@ -1848,7 +1816,7 @@ void Fluxbox::real_reconfigure() {
     for_each(m_screen_list.begin(), m_screen_list.end(), mem_fun(&BScreen::reconfigure));
 
     //reconfigure keys
-    m_key->reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
+    m_key.reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
 
 
 }
@@ -2074,18 +2042,6 @@ void Fluxbox::revertFocus(BScreen &screen, bool wait_for_end) {
 }
 
 
-
-void Fluxbox::watchKeyRelease(BScreen &screen, unsigned int mods) {
-    if (mods == 0) {
-        cerr<<"WARNING: attempt to grab without modifiers!"<<endl;
-        return;
-    }
-    m_watching_screen = &screen;
-    m_watch_keyrelease = mods;
-    XGrabKeyboard(FbTk::App::instance()->display(),
-                  screen.rootWindow().window(), True, 
-                  GrabModeAsync, GrabModeAsync, CurrentTime);
-}
 
 /**
  * Allows people to create special event exclusions/redirects

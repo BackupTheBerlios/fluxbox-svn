@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.cc,v 1.60 2003/10/28 02:17:02 rathnor Exp $
+// $Id: FbWinFrame.cc,v 1.60.2.1 2003/10/28 21:34:52 rathnor Exp $
 
 #include "FbWinFrame.hh"
 
@@ -47,8 +47,10 @@ FbWinFrame::FbWinFrame(FbWinFrameTheme &theme, FbTk::ImageControl &imgctrl,
                        unsigned int width, unsigned int height):
     m_theme(theme),
     m_imagectrl(imgctrl),
-    m_window(screen_num, x, y, width, height,  ButtonPressMask | ButtonReleaseMask |
-             ButtonMotionMask | EnterWindowMask, true),
+    m_window(screen_num, x, y, width, height,  
+             ButtonPressMask | ButtonReleaseMask |
+             ButtonMotionMask | 
+             EnterWindowMask | LeaveWindowMask, true),
     m_titlebar(m_window, 0, 0, 100, 16, 
                ButtonPressMask | ButtonReleaseMask |
                ButtonMotionMask | ExposureMask |
@@ -377,7 +379,7 @@ void FbWinFrame::setClientWindow(Window win) {
     XSelectInput(display, win, PropertyChangeMask | StructureNotifyMask | 
                  FocusChangeMask);
     XSelectInput(display, m_window.window(), ButtonPressMask | ButtonReleaseMask |
-                 ButtonMotionMask | EnterWindowMask | SubstructureRedirectMask);
+                 ButtonMotionMask | ExposureMask | EnterWindowMask | SubstructureRedirectMask);
 
     XFlush(display);
 
@@ -410,7 +412,9 @@ bool FbWinFrame::showTitlebar() {
     if (m_use_titlebar)
         return false;
 
+    m_titlebar.showSubwindows();
     m_titlebar.show();
+
     m_use_titlebar = true;
 
     // only add one borderwidth (as the other border is still the "top" border)
@@ -437,8 +441,8 @@ bool FbWinFrame::showHandle() {
     if (m_use_handle)
         return false;
 
-    m_handle.show();
     m_handle.showSubwindows(); // shows grips
+    m_handle.show();
 
     m_use_handle = true;
     m_window.resize(m_window.width(), m_window.height() + m_handle.height() +
@@ -595,8 +599,9 @@ void FbWinFrame::exposeEvent(XExposeEvent &event) {
                      m_buttons_right.end(),
                      compare);
 
-        if (it != m_buttons_right.end())
+        if (it != m_buttons_right.end()) {
             (*it)->exposeEvent(event);
+        }
     }
 
 }
@@ -622,14 +627,6 @@ void FbWinFrame::reconfigure() {
                       theme().handleWidth());
     gripRight().resize(gripLeft().width(), 
                        gripLeft().height());
-
-    // align titlebar and render it
-    if (m_use_titlebar) {
-        reconfigureTitlebar();
-        m_titlebar.raise();
-    } else 
-        m_titlebar.lower();
-
 
     // leave client+grips alone if we're shaded (it'll get fixed when we unshade)
     if (!m_shaded) {
@@ -671,6 +668,13 @@ void FbWinFrame::reconfigure() {
         }
     }
 
+    // align titlebar and render it
+    // wait until after the client window is in the right spot
+    if (m_use_titlebar) {
+        reconfigureTitlebar();
+        m_titlebar.raise();
+    } else 
+        m_titlebar.lower();
 
     // render the theme
     renderButtons();
@@ -709,9 +713,9 @@ unsigned int FbWinFrame::buttonHeight() const {
    aligns and redraws title
 */
 void FbWinFrame::redrawTitle() {
-    if (m_labelbuttons.size() == 0)
+    if (m_labelbuttons.size() == 0) {
         return;
-
+    }
     int button_width = label().width()/m_labelbuttons.size();
     //!! TODO: bevel
     //int border_width = m_labelbuttons.front()->window().borderWidth();
@@ -728,8 +732,9 @@ void FbWinFrame::redrawTitle() {
         (*btn_it)->moveResize(last_x - border_width, - border_width,
                               button_width, 
                               label().height() + border_width);
-        if (isVisible())
+        if (isVisible()) {
             (*btn_it)->clear();
+        }
     }
 
     if (isVisible()) {
