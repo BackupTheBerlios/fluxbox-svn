@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.7 2003/04/11 22:35:53 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.8 2003/04/12 09:59:43 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -242,7 +242,7 @@ FluxboxWindow::~FluxboxWindow() {
         screen.hideGeometry();
         XUngrabPointer(display, CurrentTime);
     }
-    FbTk::EventManager &evm = *FbTk::EventManager::instance();
+
     Client2ButtonMap::iterator it = m_labelbuttons.begin();
     Client2ButtonMap::iterator it_end = m_labelbuttons.end();
     for (; it != it_end; ++it) {
@@ -2137,7 +2137,7 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
         }
         
         if (m_windowmenu.isVisible())
-                m_windowmenu.hide();
+            m_windowmenu.hide();
     }
 }
 
@@ -2162,10 +2162,24 @@ void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
     if (isMoving() && me.window == screen.getRootWindow()) {
         me.window = m_frame.window().window();
     }
+    bool inside_titlebar = (m_frame.titlebar() == me.window || m_frame.label() == me.window ||
+                            m_frame.handle() == me.window || m_frame.window() == me.window);
+
+    if (!inside_titlebar) {
+        // determine if we're in titlebar
+        Client2ButtonMap::iterator it = m_labelbuttons.begin();
+        Client2ButtonMap::iterator it_end = m_labelbuttons.end();
+        for (; it != it_end; ++it) {
+            if ((*it).second->window() == me.window) {
+                inside_titlebar = true;
+                break;
+            }
+        }
+    }
 
     if ((me.state & Button1Mask) && functions.move &&
-        !(me.window == m_frame.gripRight() ||
-          me.window == m_frame.gripLeft()) && !isResizing()) {
+        inside_titlebar && 
+        !isResizing()) {
 
         if (! isMoving()) {
             startMoving(me.window);
@@ -2236,7 +2250,7 @@ void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
                (((me.state & Button1Mask) && (me.window == m_frame.gripRight() ||
                                               me.window == m_frame.gripLeft())) ||
                 me.window == m_frame.window())) {
-		
+
         bool left = (me.window == m_frame.gripLeft());
 
         if (! resizing) {			
