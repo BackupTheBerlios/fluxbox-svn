@@ -1,0 +1,69 @@
+News in 0.9.11: 
+    * Slit:
+      * wheel or middle/right click in slit menu 
+        moves items up/down
+      * Save slit list menu item
+    * (Re)added dragNdrop ordering of tabs
+    * Better visualisation of the RememberState in RememberMenu
+    * iconbar:
+      * new resources:
+        session.*.iconbar.wheelMode: <mode>
+           On     - enable mousewheeling on the iconbuttons
+           Off    - disables mousewheeling on the iconbuttons
+           Screen - uses the settings of desktopWheeling
+      
+        session.*.iconbar.deiconifyMode: <mode>
+           Current    - deiconifies the window on current workspace
+           Follow     - deiconifies the window on the workspace it
+                        was iconified from and jumps to that workspace
+           SemiFollow - acts as 'Current' for windows that were actually
+                        iconified, and as 'follow' for the others
+        * 
+      * Added option to specify what to do with windows, 
+        that got activated on a different workspaces than the
+         urrent one (thru NET_ACTIVE_WINDOW for example,
+         guinotification-plugin from gaim)
+        * session.screen0.followModel: <value>
+           Ignore  - ignore the activated window
+           Follow  - go to the workspace of the window
+          Current | CurrentWorkspace | Fetch - get the window onto the 
+                                               current workspace
+    * session.focusTabMinWidth:
+      defines the guaranteed minimize size of the focused tab
+      in percent of the whole window
+    * New command: export | setenv  
+      sets the enviroment of fluxbox to a given value
+      export NAME=VALUE
+      setenv NAME VALUE
+    * Alpha values are no longer in theme, but are in init file. Possible
+      values are (all beginning with session.screenN.), * means changed/new:
+        -  menu.alpha (*)
+        -  slit.alpha 
+        -  window.focus.alpha (*)
+        -  window.unfocus.alpha (*)
+        -  toolbar.alpha (*)
+Bug fixes:
+    * Fix to avoid gentoo bug #72703 also reported at  
+      http://www.securityfocus.com/archive/1/382398/2004-11-24/2004-11-30/2
+    * Fix for a java-bug (wrong opened subwindows)
+    * Fix for hiding menu when menufile changed 
+    * Fix for segfault at startup
+    * fbrun doesnt overlap screenborders anymore
+    * Fixed Wine + Paradise Poker Client problem.
+    * Fix UnderMousePlacement, patch #1052534, close #1048000
+    * Some changes to avoid invisible fonts
+    * Fix memleaks
+    * A few fixes to compile fluxbox with icc and mipspro(irix) #1045785
+    * Fixed a problem when system-date is set back 
+    * Fixed some TextBox issues with some "untypeable" keys 
+    * Fix a couple of bugs with transparency in toolbar/buttons
+    * Fix crash when in windowmenu->submenu and closing the app 
+    * other bug fixes:
+      #1057499
+      #1046472
+      #1052095 
+      #1034522 
+      #1039658
+
+
+See ChangeLog for more details
