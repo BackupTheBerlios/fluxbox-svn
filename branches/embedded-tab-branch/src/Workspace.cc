@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Workspace.cc,v 1.50.2.3 2003/04/09 09:19:03 fluxgen Exp $
+// $Id: Workspace.cc,v 1.50.2.4 2003/04/12 12:52:14 fluxgen Exp $
 
 #include "Workspace.hh"
 
@@ -51,6 +51,7 @@
 
 #include <algorithm>
 #include <iostream>
+#include <iterator>
 
 using namespace std;
 
@@ -69,27 +70,42 @@ int countTransients(const FluxboxWindow &win) {
     return ret;
 }
 
-class RaiseFocusAndSetWorkspace: public FbTk::Command {
+class ClientMenuItem:public FbTk::MenuItem {
 public:
-    RaiseFocusAndSetWorkspace(Workspace &space, WinClient &client):
-        m_space(space), m_winclient(client) { }
-    void execute() { 
+    ClientMenuItem(WinClient &client, Workspace &space):
+        FbTk::MenuItem(client.title().c_str()),
+        m_client(client), m_space(space) {
+        
+    }
+    void click(int button, int time) {
+        if (m_client.fbwindow() == 0)
+            return;
+        FluxboxWindow &win = *m_client.fbwindow();
+        BScreen &scr = win.getScreen();
         // determine workspace change
-        for (size_t i=0; i<m_space.getScreen().getCount(); i++) {
-            if (m_space.getScreen().getWorkspace(i) == &m_space) {
-                m_space.getScreen().changeWorkspaceID(i); 
+        for (size_t i=0; i<scr.getCount(); i++) {
+            if (scr.getWorkspace(i) == &m_space) {
+                scr.changeWorkspaceID(i); 
                 break;
             }
         }
-        if (m_winclient.m_win == 0)
-            return;
 
-        m_winclient.m_win->setCurrentClient(m_winclient);
-        m_winclient.m_win->raiseAndFocus();
+        win.setCurrentClient(m_client);
+        win.raiseAndFocus();
+    }
+
+    const std::string &label() const { return m_client.title(); }
+    bool isSelected() const { 
+        if (m_client.fbwindow() == 0)
+            return false;
+        if (m_client.fbwindow()->isFocused() == false)
+            return false;
+        return (&(m_client.fbwindow()->winClient()) == &m_client);
+            
     }
 private:
+    WinClient &m_client;
     Workspace &m_space;
-    WinClient &m_winclient;
 };
 
 };
@@ -257,10 +273,7 @@ int Workspace::removeWindow(FluxboxWindow *w) {
 
     if (lastfocus == w || m_windowlist.empty())
         lastfocus = 0;
-	
-#ifdef DEBUG
-    cerr<<"Removed window: "<<w<<endl;
-#endif // DEBUG
+
     return m_windowlist.size();
 }
 
@@ -456,6 +469,12 @@ void Workspace::setName(const std::string &name) {
  clears the m_windowlist
 */
 void Workspace::shutdown() {
+#ifdef DEBUG
+    cerr<<__FILE__<<"("<<__FUNCTION__<<"): windowlist:"<<endl;
+    copy(m_windowlist.begin(), m_windowlist.end(),
+         ostream_iterator<FluxboxWindow *>(cerr, " \n"));
+    cerr<<endl;
+#endif // DEBUG
     // note: when the window dies it'll remove it self from the list
     while (!m_windowlist.empty()) {
         // restore with remap on all clients in that window
@@ -478,12 +497,11 @@ void Workspace::updateClientmenu() {
         FluxboxWindow::ClientList::iterator client_it_end = 
             (*win_it)->clientList().end();
         for (; client_it != client_it_end; ++client_it) {
-            FbTk::RefCount<FbTk::Command> 
+            /*  FbTk::RefCount<FbTk::Command> 
                 raise_and_focus(new RaiseFocusAndSetWorkspace(*this, 
                                                               *(*client_it)));
-
-            m_clientmenu.insert((*client_it)->title().c_str(), 
-                                raise_and_focus); 
+                                                              */
+            m_clientmenu.insert(new ClientMenuItem(*(*client_it), *this));
         }
     }
     
