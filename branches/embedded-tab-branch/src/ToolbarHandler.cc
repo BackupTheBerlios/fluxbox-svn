@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ToolbarHandler.cc,v 1.3.2.1 2003/03/30 12:24:46 rathnor Exp $
+// $Id: ToolbarHandler.cc,v 1.3.2.2 2003/04/07 10:33:39 fluxgen Exp $
 
 /**
  * The ToolbarHandler class acts as a rough interface to the toolbar.
@@ -134,7 +134,8 @@ void ToolbarHandler::setMode(ToolbarMode mode, bool initialise) {
 }
 
 void ToolbarHandler::initForScreen(BScreen &screen) {
-    if (&m_screen != &screen) return;
+    if (&m_screen != &screen) 
+        return;
     switch (m_mode) {
     case OFF:
         break;
@@ -149,7 +150,7 @@ void ToolbarHandler::initForScreen(BScreen &screen) {
             Workspace::Windows::iterator wit = wins.begin();
             Workspace::Windows::iterator wit_end = wins.end();
             for (; wit != wit_end; ++wit) {
-                m_toolbar->addIcon(*wit);
+                //   m_toolbar->addIcon(*(*wit));
             }
         }
     }
@@ -161,7 +162,7 @@ void ToolbarHandler::initForScreen(BScreen &screen) {
         BScreen::Icons::iterator iconit = iconlist.begin();
         BScreen::Icons::iterator iconit_end = iconlist.end();
         for(; iconit != iconit_end; ++iconit) {
-            m_toolbar->addIcon(*iconit);
+            //            m_toolbar->addIcon(*iconit);
         }
     }
     break;
@@ -171,7 +172,7 @@ void ToolbarHandler::initForScreen(BScreen &screen) {
         Workspace::Windows::iterator wit = wins.begin();
         Workspace::Windows::iterator wit_end = wins.end();
         for (; wit != wit_end; ++wit) {
-            m_toolbar->addIcon(*wit);
+            // m_toolbar->addIcon(*wit);
         }
     }
     // fall through and add icons for this workspace
@@ -192,7 +193,9 @@ void ToolbarHandler::initForScreen(BScreen &screen) {
 }
 
 void ToolbarHandler::setupWindow(FluxboxWindow &win) {
-    if (win.getScreen() != &m_screen) return;
+    if (&win.getScreen() != &m_screen)
+        return;
+
     switch (m_mode) {
     case OFF:
     case NONE:
@@ -218,7 +221,9 @@ void ToolbarHandler::setupWindow(FluxboxWindow &win) {
 }
 
 void ToolbarHandler::updateWindowClose(FluxboxWindow &win) {
-    if (win.getScreen() != &m_screen) return;
+    if (&win.getScreen() != &m_screen) 
+        return;
+
     // check status of window (in current workspace, etc) and remove if necessary
     switch (m_mode) {
     case OFF:
@@ -245,7 +250,8 @@ void ToolbarHandler::updateWindowClose(FluxboxWindow &win) {
 }
 
 void ToolbarHandler::updateState(FluxboxWindow &win) {
-    if (win.getScreen() != &m_screen) return;
+    if (&win.getScreen() != &m_screen)
+        return;
 
     // this function only relevant for icons
     switch (m_mode) {
@@ -274,7 +280,9 @@ void ToolbarHandler::updateState(FluxboxWindow &win) {
         
 
 void ToolbarHandler::updateWorkspace(FluxboxWindow &win) {
-    if (win.getScreen() != &m_screen) return;
+    if (&win.getScreen() != &m_screen) 
+        return;
+
     // don't care about current workspace except if in workspace mode
     if (!(m_mode == WORKSPACE || (m_mode == WORKSPACEICONS && win.isIconic()))) return;
     
