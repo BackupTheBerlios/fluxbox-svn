@@ -1,5 +1,5 @@
 // Screen.cc for Fluxbox Window Manager
-// Copyright (c) 2001 - 2002 Henrik Kinnunen (fluxgen at users.sourceforge.net)
+// Copyright (c) 2001 - 2003 Henrik Kinnunen (fluxgen at users.sourceforge.net)
 //
 // Screen.cc for Blackbox - an X11 Window manager
 // Copyright (c) 1997 - 2000 Brad Hughes (bhughes at tcac.net)
@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118 2003/03/22 05:13:08 rathnor Exp $
+// $Id: Screen.cc,v 1.118.2.1 2003/04/07 10:37:12 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -47,6 +47,7 @@
 #include "MultLayers.hh"
 #include "FbMenu.hh"
 #include "LayerMenu.hh"
+#include "WinClient.hh"
 
 //use GNU extensions
 #ifndef	 _GNU_SOURCE
@@ -583,6 +584,7 @@ BScreen::BScreen(ResourceManager &rm,
 
     m_configmenu.reset(createMenuFromScreen(*this));
     setupConfigmenu(*m_configmenu.get());
+    m_configmenu->setInternalMenu();
 
     workspacemenu->setItemSelected(2, true);
 
@@ -967,12 +969,13 @@ void BScreen::changeWorkspaceID(unsigned int id) {
             focused->pauseMoving();
         }
 
+        // reassociate all windows that are stuck to the new workspace
         Workspace *wksp = getCurrentWorkspace();
         Workspace::Windows wins = wksp->getWindowList();
         Workspace::Windows::iterator it = wins.begin();
         for (; it != wins.end(); ++it) {
             if ((*it)->isStuck()) {
-                reassociateGroup(*it,id,true);
+                reassociateGroup(*it, id, true);
             }
         }
 
@@ -980,7 +983,7 @@ void BScreen::changeWorkspaceID(unsigned int id) {
 
         workspacemenu->setItemSelected(current_workspace->workspaceID() + 2, false);
 
-        if (focused && focused->getScreen() == this &&
+        if (focused && &focused->getScreen() == this &&
             (! focused->isStuck()) && (!focused->isMoving())) {
             current_workspace->setLastFocusedWindow(focused);
             Fluxbox::instance()->setFocusedWindow(0); // set focused window to none
@@ -1022,7 +1025,7 @@ void BScreen::sendToWorkspace(unsigned int id, FluxboxWindow *win, bool changeWS
     if (id != current_workspace->workspaceID()) {
         XSync(BaseDisplay::getXDisplay(), True);
 
-        if (win && win->getScreen() == this &&
+        if (win && &win->getScreen() == this &&
             (! win->isStuck())) {
 
             if ( win->getTab() ) {
@@ -1175,7 +1178,7 @@ void BScreen::updateNetizenConfigNotify(XEvent *e) {
 }
 
 FluxboxWindow *BScreen::createWindow(Window client) {
-    FluxboxWindow *win = new FluxboxWindow(client, this, getScreenNumber(), *getImageControl(), 
+    FluxboxWindow *win = new FluxboxWindow(client, *this, 
                                            winFrameTheme(), *menuTheme(),
                                            *layerManager().getLayer(Fluxbox::instance()->getNormalLayer()));
  
@@ -1196,6 +1199,27 @@ FluxboxWindow *BScreen::createWindow(Window client) {
         win->show();      
     }
     XSync(FbTk::App::instance()->display(), False);
+    return win;
+}
+
+FluxboxWindow *BScreen::createWindow(WinClient &client) {
+    FluxboxWindow *win = new FluxboxWindow(client, *this, 
+                                           winFrameTheme(), *menuTheme(),
+                                           *layerManager().getLayer(Fluxbox::instance()->getNormalLayer()));
+#ifdef SLIT
+    if (win->initialState() == WithdrawnState)
+        getSlit()->addClient(win->getClientWindow());
+#endif // SLIT
+    if (!win->isManaged()) {
+        delete win;
+        return 0;
+    }
+    Fluxbox::instance()->saveWindowSearch(client.window(), win);
+    Fluxbox::instance()->attachSignals(*win);
+    setupWindowActions(*win);
+    if (win->getWorkspaceNumber() == getCurrentWorkspaceID() || win->isStuck()) {
+        win->show();      
+    }
     return win;
 }
 
@@ -1301,7 +1325,7 @@ void BScreen::setupWindowActions(FluxboxWindow &win) {
     menu.insert("Iconify", iconify_cmd);
     menu.insert("Raise", raise_cmd);
     menu.insert("Lower", lower_cmd);
-    menu.insert("Layer...", win.getLayermenu());
+    menu.insert("Layer...", &win.getLayermenu());
     menu.insert("¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯");
     menu.insert("Close", close_cmd);
 
@@ -1372,7 +1396,7 @@ void BScreen::nextFocus(int opts) {
     const int num_windows = getCurrentWorkspace()->getCount();
 
     if (focused != 0) {
-        if (focused->getScreen()->getScreenNumber() == 
+        if (focused->getScreen().getScreenNumber() == 
             getScreenNumber()) {
             have_focused = true;
             focused_window_number = focused->getWindowNumber();
@@ -1385,9 +1409,9 @@ void BScreen::nextFocus(int opts) {
         Workspace::Windows::iterator it = wins.begin();
 
         if (!have_focused) {
-            focused = *it;
+            focused = (*it);
         } else {
-            for (; *it != focused; ++it) //get focused window iterator
+            for (; (*it) != focused; ++it) //get focused window iterator
                 continue;
         }
         do {
@@ -1395,11 +1419,11 @@ void BScreen::nextFocus(int opts) {
             if (it == wins.end())
                 it = wins.begin();
             // see if the window should be skipped
-            if (! (doSkipWindow(*it, opts) || !(*it)->setInputFocus()) )
+            if (! (doSkipWindow((*it), opts) || !(*it)->setInputFocus()) )
                 break;
-        } while (*it != focused);
+        } while ((*it) != focused);
 
-        if (*it != focused && it != wins.end())
+        if ((*it) != focused && it != wins.end())
             (*it)->raise();
 
     }
@@ -1414,7 +1438,7 @@ void BScreen::prevFocus(int opts) {
     int num_windows = getCurrentWorkspace()->getCount();
 	
     if ((focused = Fluxbox::instance()->getFocusedWindow())) {
-        if (focused->getScreen()->getScreenNumber() ==
+        if (focused->getScreen().getScreenNumber() ==
             getScreenNumber()) {
             have_focused = true;
             focused_window_number = focused->getWindowNumber();
@@ -1427,9 +1451,9 @@ void BScreen::prevFocus(int opts) {
         Workspace::Windows::iterator it = wins.begin();
 
         if (!have_focused) {
-            focused = *it;
+            focused = (*it);
         } else {
-            for (; *it != focused; ++it) //get focused window iterator
+            for (; (*it) != focused; ++it) //get focused window iterator
                 continue;
         }
 		
@@ -1438,11 +1462,11 @@ void BScreen::prevFocus(int opts) {
                 it = wins.end();
             --it;
             // see if the window should be skipped
-            if (! (doSkipWindow(*it, opts) || !(*it)->setInputFocus()) )
+            if (! (doSkipWindow((*it), opts) || !(*it)->setInputFocus()) )
                 break;
-        } while (*it != focused);
+        } while ((*it) != focused);
 
-        if (*it != focused && it != wins.end())
+        if ((*it) != focused && it != wins.end())
             (*it)->raise();
 
     }
@@ -1455,7 +1479,7 @@ void BScreen::raiseFocus() {
     Fluxbox * const fb = Fluxbox::instance();
 	
     if (fb->getFocusedWindow())
-        if (fb->getFocusedWindow()->getScreen()->getScreenNumber() ==
+        if (fb->getFocusedWindow()->getScreen().getScreenNumber() ==
             getScreenNumber()) {
             have_focused = true;
             focused_window_number = fb->getFocusedWindow()->getWindowNumber();
@@ -1469,9 +1493,17 @@ void BScreen::initMenu() {
     I18n *i18n = I18n::instance();
 	
     if (m_rootmenu.get()) {
-        rootmenuList.erase(rootmenuList.begin(), rootmenuList.end());
+        Rootmenus::iterator it = rootmenuList.begin();
+        Rootmenus::iterator it_end = rootmenuList.end();
+        for (; it != it_end; ++it) {
+            if (*it != m_configmenu.get()) {
+                delete *it;
+            }
+        }
+        rootmenuList.clear();
+        //    rootmenuList.erase(rootmenuList.begin(), rootmenuList.end());
 
-        while (m_rootmenu->numberOfItems())
+       while (m_rootmenu->numberOfItems())
             m_rootmenu->remove(0);			
     } else
         m_rootmenu.reset(createMenuFromScreen(*this));
