@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.hh,v 1.1.2.2 2003/04/09 08:54:10 fluxgen Exp $
+// $Id: WinClient.hh,v 1.1.2.3 2003/04/09 16:00:52 fluxgen Exp $
 
 #ifndef WINCLIENT_HH
 #define WINCLIENT_HH
@@ -77,7 +77,7 @@ public:
 
  
     int x, y, old_bw;
-    unsigned int width, height,
+    unsigned int
         min_width, min_height, max_width, max_height, width_inc, height_inc,
         min_aspect_x, min_aspect_y, max_aspect_x, max_aspect_y,
         base_width, base_height, win_gravity;

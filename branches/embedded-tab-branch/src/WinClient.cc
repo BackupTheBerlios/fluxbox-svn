@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.cc,v 1.1.2.2 2003/04/09 08:55:03 fluxgen Exp $
+// $Id: WinClient.cc,v 1.1.2.3 2003/04/09 16:01:09 fluxgen Exp $
 
 #include "WinClient.hh"
 
@@ -33,9 +33,7 @@ using namespace std;
 WinClient::WinClient(Window win, FluxboxWindow &fbwin):FbTk::FbWindow(win),
                      transient_for(0),
                      window_group(0),
-
                      x(0), y(0), old_bw(0),
-                     width(1), height(1), 
                      min_width(1), min_height(1),
                      max_width(1), max_height(1),
                      width_inc(1), height_inc(1),
