@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.104.2.2 2003/04/07 11:01:34 fluxgen Exp $
+// $Id: fluxbox.cc,v 1.104.2.3 2003/04/07 20:22:19 fluxgen Exp $
 
 
 #include "fluxbox.hh"
@@ -1509,7 +1509,7 @@ void Fluxbox::update(FbTk::Subject *changedsub) {
             // make sure each workspace get this 
             BScreen &scr = win.getScreen();
             for (int workspace = 0; workspace < scr.getNumberOfWorkspaces();
-                 ++workspace) {
+                 ++workspace) {                
                 scr.getWorkspace(workspace)->removeWindow(&win);
             }
             
@@ -1551,7 +1551,15 @@ void Fluxbox::update(FbTk::Subject *changedsub) {
     } else if (typeid(*changedsub) == typeid(WinClient::WinClientSubj)) {
         WinClient::WinClientSubj *subj = dynamic_cast<WinClient::WinClientSubj *>(changedsub);
         WinClient &client = subj->winClient();
-        removeWindowSearch(client.window());
+        //!! TODO we shouldn't call update netizen on every screen
+        // just the screen it was located on
+        ScreenList::iterator screen_it = screenList.begin();
+        const ScreenList::iterator screen_it_end = screenList.end();
+        for (; screen_it != screen_it_end; ++screen_it)
+            (*screen_it)->updateNetizenWindowDel(client.window());
+
+
+        removeWindowSearch(client.window());        
         //!! TODO
 #ifdef DEBUG
         cerr<<__FILE__<<"("<<__FUNCTION__<<") TODO: signal stuff for client death!!"<<endl;
