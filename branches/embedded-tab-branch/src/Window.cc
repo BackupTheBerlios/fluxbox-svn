@@ -22,10 +22,11 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.6 2003/04/11 13:39:32 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.7 2003/04/11 22:35:53 fluxgen Exp $
 
 #include "Window.hh"
 
+#include "WinClient.hh"
 #include "i18n.hh"
 #include "fluxbox.hh"
 #include "Screen.hh"
@@ -33,7 +34,9 @@
 #include "Netizen.hh"
 #include "FbWinFrameTheme.hh"
 #include "MenuTheme.hh"
-#include "WinClient.hh"
+
+#include "TextButton.hh"
+#include "EventManager.hh"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -150,6 +153,21 @@ void lowerFluxboxWindow(FluxboxWindow &win) {
     }
 }
 
+class SetClientCmd:public FbTk::Command {
+public:
+    explicit SetClientCmd(WinClient &client):m_client(client) {
+    }
+    void execute() {
+#ifdef DEBUG
+        cerr<<"SetClientCmd"<<endl;
+#endif // DEBUG
+        if (m_client.m_win != 0)
+            m_client.m_win->setCurrentClient(m_client);
+    }
+private:
+    WinClient &m_client;
+};
+
 };
 
 FluxboxWindow::FluxboxWindow(WinClient &client, BScreen &scr, FbWinFrameTheme &tm,
@@ -224,6 +242,15 @@ FluxboxWindow::~FluxboxWindow() {
         screen.hideGeometry();
         XUngrabPointer(display, CurrentTime);
     }
+    FbTk::EventManager &evm = *FbTk::EventManager::instance();
+    Client2ButtonMap::iterator it = m_labelbuttons.begin();
+    Client2ButtonMap::iterator it_end = m_labelbuttons.end();
+    for (; it != it_end; ++it) {
+        //        evm.remove((*it)->window());
+        m_frame.removeLabelButton(*(*it).second);
+        delete (*it).second;
+    }
+    m_labelbuttons.clear();
 
     timer.stop();
     
@@ -232,7 +259,7 @@ FluxboxWindow::~FluxboxWindow() {
 
     if (m_client != 0)
         delete m_client; // this also removes client from our list
-
+    m_client = 0;
 
     if (m_clientlist.size() > 1) {
         cerr<<__FILE__<<"("<<__FUNCTION__<<") WARNING! clientlist > 1"<<endl;
@@ -246,12 +273,37 @@ FluxboxWindow::~FluxboxWindow() {
 #endif // DEBUG
 }
 
-void FluxboxWindow::init() {
-    m_clientlist.push_back(m_client);
- 
-   // redirect events from frame to us
-    m_frame.setEventHandler(*this); 
 
+void FluxboxWindow::init() {
+    assert(m_client);
+    //!! TODO init of client should be better
+    // we don't want to duplicate code here and in attachClient
+    m_clientlist.push_back(m_client);
+#ifdef DEBUG
+    cerr<<"FluxboxWindow::init(this="<<this<<")"<<endl;
+#endif // DEBUG
+    TextButton *btn =  new TextButton(m_frame.label(), 
+                                      m_frame.theme().font(),
+                                      m_client->title());
+    m_labelbuttons[m_client] = btn;
+    m_frame.addLabelButton(*btn);
+    btn->show();
+    FbTk::EventManager &evm = *FbTk::EventManager::instance();
+    // we need motion notify so we mask it
+    btn->window().setEventMask(ExposureMask | ButtonPressMask | ButtonReleaseMask | 
+                               ButtonMotionMask);
+
+    FbTk::RefCount<FbTk::Command> set_client_cmd(new SetClientCmd(*m_client));
+    btn->setOnClick(set_client_cmd);
+    evm.add(*this, btn->window()); // we take care of button events for this
+    // redirect events from frame to us
+#ifdef DEBUG
+    cerr<<"Setting up catch for events in frame"<<endl;
+#endif // DEBUG
+    m_frame.setEventHandler(*this); 
+#ifdef DEBUG
+    cerr<<"setup for catching events....done"<<endl;
+#endif // DEBUG
     lastFocusTime.tv_sec = lastFocusTime.tv_usec = 0;
 
     // display connection
@@ -416,7 +468,19 @@ void FluxboxWindow::attachClient(WinClient &client) {
     cerr<<"attach client window = "<<hex<<client.window()<<dec<<endl;
 #endif // DEBUG    
     // reparent client win to this frame 
-    m_frame.setClientWindow(client.window());    
+    m_frame.setClientWindow(client);
+    // create a labelbutton for this client and associate it with the pointer
+    TextButton *btn = new TextButton(m_frame.label(), 
+                                     m_frame.theme().font(),
+                                     client.title());
+    m_labelbuttons[&client] = btn;
+    m_frame.addLabelButton(*btn);
+    btn->show();
+    FbTk::EventManager &evm = *FbTk::EventManager::instance();
+    // we need motion notify so we mask it
+    btn->window().setEventMask(ExposureMask | ButtonPressMask | ButtonReleaseMask | 
+                               ButtonMotionMask);
+
 
     if (client.m_win != 0) {
         // add client and move over all attached clients 
@@ -429,6 +493,10 @@ void FluxboxWindow::attachClient(WinClient &client) {
         delete old_win;
 
     }
+
+    FbTk::RefCount<FbTk::Command> set_client_cmd(new SetClientCmd(client));
+    btn->setOnClick(set_client_cmd);
+    evm.add(*this, btn->window()); // we take care of button events for this
 
 #ifdef DEBUG
     XSync(display, False); // so we see error/warnings in time
@@ -479,6 +547,7 @@ bool FluxboxWindow::detachClient(WinClient &client) {
 bool FluxboxWindow::removeClient(WinClient &client) {
     if (client.m_win != this || numClients() == 0)
         return false;
+
 #ifdef DEBUG
     cerr<<__FILE__<<"("<<__FUNCTION__<<")["<<this<<"]"<<endl;
 #endif // DEBUG
@@ -496,10 +565,20 @@ bool FluxboxWindow::removeClient(WinClient &client) {
     if (m_client == &client && m_clientlist.size() == 0)
         m_client = 0;
 
+    FbTk::Button *label_btn = m_labelbuttons[&client];
+    if (label_btn != 0) {
+        m_frame.removeLabelButton(*label_btn);
+        FbTk::EventManager::instance()->remove(label_btn->window());
+        delete label_btn;
+        label_btn = 0;
+    }
+
+    m_labelbuttons.erase(&client);
+
 #ifdef DEBUG
     cerr<<__FILE__<<"("<<__FUNCTION__<<")["<<this<<"] numClients = "<<numClients()<<endl;
-#endif // DEBUG    
-        
+#endif // DEBUG   
+
     return true;
 }
 
@@ -567,8 +646,8 @@ void FluxboxWindow::associateClientWindow() {
     updateTitleFromClient();
     updateIconNameFromClient();
 
-    m_frame.setClientWindow(m_client->window());
-
+    m_frame.setClientWindow(*m_client);
+    m_frame.resizeForClient(m_client->width(), m_client->height());
     // make sure the frame reconfigures
     m_frame.reconfigure();
 }
@@ -650,8 +729,8 @@ void FluxboxWindow::positionWindows() {
 void FluxboxWindow::updateTitleFromClient() {
 
     m_client->updateTitle();
-
-    m_frame.setTitle(m_client->title());	
+    m_labelbuttons[m_client]->setText(m_client->title());    
+    m_labelbuttons[m_client]->clear(); // redraw text
 }
 
 /// update icon title from client
@@ -1063,7 +1142,8 @@ void FluxboxWindow::iconify() {
 
     m_windowmenu.hide();
     visible = false;
-	
+    iconic = true;
+
     setState(IconicState);
 
     m_frame.hide();
@@ -1239,9 +1319,9 @@ void FluxboxWindow::setLayerNum(int layernum) {
 }
 
 void FluxboxWindow::shade() {
+    // we can only shade if we have a titlebar
     if (!decorations.titlebar)
         return;
-
 
     m_frame.shade();
 
@@ -1255,7 +1335,7 @@ void FluxboxWindow::shade() {
         shaded = true;
         blackbox_attrib.flags |= BaseDisplay::ATTRIB_SHADED;
         blackbox_attrib.attrib |= BaseDisplay::ATTRIB_SHADED;
-
+        // shading is the same as iconic
         setState(IconicState);
     }
 
@@ -1445,9 +1525,10 @@ void FluxboxWindow::installColormap(bool install) {
                 if (install)
                     XInstallColormap(display, wattrib.colormap);
             } else {				
-                for (i = 0; i < ncmap; i++) // uninstall the window's colormap
-                    if (*(cmaps + i) == wattrib.colormap)						
-                        XUninstallColormap(display, wattrib.colormap); // we found the colormap to uninstall
+                for (i = 0; i < ncmap; i++) { // uninstall the window's colormap
+                    if (*(cmaps + i) == wattrib.colormap)
+                       XUninstallColormap(display, wattrib.colormap);
+                }
             }
         }
 
@@ -1456,9 +1537,6 @@ void FluxboxWindow::installColormap(bool install) {
 
     fluxbox->ungrab();
 }
-namespace {
-
-};
 
 /**
  Saves blackbox hints for every client in our list
@@ -1475,9 +1553,6 @@ void FluxboxWindow::saveBlackboxHints() {
  Sets state on each client in our list
  */
 void FluxboxWindow::setState(unsigned long new_state) {
-    if (new_state == IconicState)
-        iconic = true;
-   
     current_state = new_state;
     unsigned long state[2];
     state[0] = (unsigned long) current_state;
@@ -1518,7 +1593,7 @@ bool FluxboxWindow::getState() {
     return ret;
 }
 
-//TODO: this functions looks odd
+//!! TODO: this functions looks odd
 void FluxboxWindow::setGravityOffsets() {
     int newx = m_frame.x();
     int newy = m_frame.y();
@@ -2064,7 +2139,6 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
         if (m_windowmenu.isVisible())
                 m_windowmenu.hide();
     }
-
 }
 
 void FluxboxWindow::shapeEvent(XShapeEvent *) { }
@@ -2088,10 +2162,11 @@ void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
     if (isMoving() && me.window == screen.getRootWindow()) {
         me.window = m_frame.window().window();
     }
+
     if ((me.state & Button1Mask) && functions.move &&
-        (m_frame.titlebar() == me.window || m_frame.label() == me.window ||
-         m_frame.handle() == me.window || m_frame.window() == me.window) && !isResizing()) {
-			 
+        !(me.window == m_frame.gripRight() ||
+          me.window == m_frame.gripLeft()) && !isResizing()) {
+
         if (! isMoving()) {
             startMoving(me.window);
         } else {			
@@ -2119,7 +2194,7 @@ void FluxboxWindow::motionNotifyEvent(XMotionEvent &me) {
                     new_id = (cur_id + 1) % screen.getCount();
                     dx = - me.x_root; // move mouse back to x=0
                 } else if (me.x_root <= warpPad &&
-                    moved_x < 0) {
+                           moved_x < 0) {
                     //warp left
                     new_id = (cur_id + screen.getCount() - 1) % screen.getCount();
                     dx = screen.getWidth() - me.x_root-1; // move mouse to screen width - 1
