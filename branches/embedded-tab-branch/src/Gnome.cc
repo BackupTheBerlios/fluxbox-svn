@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Gnome.cc,v 1.13 2003/03/04 11:13:42 fluxgen Exp $
+// $Id: Gnome.cc,v 1.13.2.1 2003/04/07 10:19:05 fluxgen Exp $
 
 #include "Gnome.hh"
 
@@ -115,7 +115,7 @@ void Gnome::setupWindow(FluxboxWindow &win) {
                            (unsigned char **) &data) ==  Success && data) {
         unsigned int workspace_num = *data;
         if (win.getWorkspaceNumber() != workspace_num) 
-            win.getScreen()->reassociateWindow(&win, workspace_num, false);
+            win.getScreen().reassociateWindow(&win, workspace_num, false);
         XFree (data);
     }
 
@@ -249,9 +249,9 @@ bool Gnome::checkClientMessage(const XClientMessageEvent &ce, BScreen * screen, 
         cerr<<__FILE__<<"("<<__LINE__<<"): Got workspace atom="<<ce.data.l[0]<<endl;
 #endif//!DEBUG
         if ( win !=0 && // the message sent to client window?
-             win->getScreen() && ce.data.l[0] >= 0 &&
-             ce.data.l[0] < (signed)win->getScreen()->getCount()) {
-            win->getScreen()->changeWorkspaceID(ce.data.l[0]);
+             ce.data.l[0] >= 0 &&
+             ce.data.l[0] < (signed)win->getScreen().getCount()) {
+            win->getScreen().changeWorkspaceID(ce.data.l[0]);
 					
         } else if (screen!=0 && //the message sent to root window?
                    ce.data.l[0] >= 0 &&
