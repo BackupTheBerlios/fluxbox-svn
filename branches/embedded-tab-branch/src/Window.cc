@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.4 2003/04/09 15:57:48 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.5 2003/04/11 10:19:28 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -1066,11 +1066,6 @@ void FluxboxWindow::iconify() {
 
     m_frame.hide();
 
-    screen.getWorkspace(workspace_number)->removeWindow(this);
-
-
-    screen.addIcon(this);
-
     ClientList::iterator client_it = m_clientlist.begin();
     const ClientList::iterator client_it_end = m_clientlist.end();
     for (; client_it != client_it_end; ++client_it) {
@@ -1274,10 +1269,7 @@ void FluxboxWindow::stick() {
 
     } else {
         stuck = true;
-        if (screen.getCurrentWorkspaceID() != workspace_number) {
-            screen.reassociateWindow(this, screen.getCurrentWorkspaceID(), true);
-        }
-		
+
         blackbox_attrib.flags |= BaseDisplay::ATTRIB_OMNIPRESENT;
         blackbox_attrib.attrib |= BaseDisplay::ATTRIB_OMNIPRESENT;
 
