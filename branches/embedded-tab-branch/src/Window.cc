@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.10 2003/04/12 21:41:53 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.11 2003/04/13 12:18:27 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -295,6 +295,9 @@ void FluxboxWindow::init() {
     FbTk::RefCount<FbTk::Command> set_client_cmd(new SetClientCmd(*m_client));
     btn->setOnClick(set_client_cmd);
     evm.add(*this, btn->window()); // we take care of button events for this
+
+    m_frame.reconfigure();
+
     // redirect events from frame to us
 #ifdef DEBUG
     cerr<<"Setting up catch for events in frame"<<endl;
@@ -542,7 +545,7 @@ void FluxboxWindow::attachClient(WinClient &client) {
         Fluxbox::instance()->saveWindowSearch(client.window(), this);
     }
 
-
+    m_frame.reconfigure();
 #ifdef DEBUG
     XSync(display, False); // so we see error/warnings in time
     cerr<<"destroyed old window "<<client.window()<<endl;
@@ -1086,7 +1089,6 @@ void FluxboxWindow::moveResize(int new_x, int new_y,
             event.xconfigure.above = m_frame.window().window();
             event.xconfigure.override_redirect = false;
 
-            XSendEvent(display, client.window(), False, StructureNotifyMask, &event);
             screen.updateNetizenConfigNotify(&event);
         } // end for        
     }
@@ -1518,7 +1520,6 @@ void FluxboxWindow::moveToLayer(int layernum) {
             screen.updateNetizenWindowRaise((*it)->getClientWindow());
             (*it)->getLayerItem().moveToLayer(layernum);
             (*it)->setLayerNum((*it)->getLayerItem().getLayerNum());
-
         }
     }
 }
