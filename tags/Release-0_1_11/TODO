@@ -1,0 +1,42 @@
+* const-correctnes
+* Clean up in BImage class, some of those functions are huge, and needs to be smaller.
+  And make the class more independent so it could be movable to other applications, 
+  such as config tools.
+
+* toolbar -> separate application
+* Some kind of resource class instead of the Screen and Fluxbox class with all the resources?
+
+
+* Screen.cc:
+	fix toupper for str_key in in Menu loading
+	nls for "error on row" in Menu loading ?? 
+* remove cyclic deps:
+	Tab <-> Window
+	Workspace <-> Window
+	and more 
+* Fix configurable toolbar
+  so the user can configure toolbar in a config file
+* Toolbar shouldn't hide if its autohide and 
+  you are in "change workspace mode"
+* Finnish (Finland) translation
+* Wheel-config support
+* Separator in the menus
+* More Gnome atom support 
+* Net wm atom support
+* Clean up in the global namespace
+* Create fbinput style app
+* Add "system menu" for minimized apps in the icon bar.
+  (Close, Kill, Send to, etc)	
+* "Iconify group"/group commands in Windowmenu
+* Call and navigate menus from the keyboard (bind a menu to a key
+  and use arrows to navigate)
+* Dynamic tag width. Currently I know of two options - constant width
+  and dividing the full window width. I like it better when the width is
+  enough to show all the title, as long as the aggregation of all tabs
+  doesn't exceed the frame's width (see PWM for example)
+* Unique names (e.g, the second xterm title will be "xterm <2>", as in
+  emacs), needed for the next wish:
+* "Goto Frame" as Emacs C-x b, that show completions in the bar
+* mouse button configure
+
+
