@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.104.2.4 2003/04/09 09:11:56 fluxgen Exp $
+// $Id: fluxbox.cc,v 1.104.2.5 2003/04/11 10:16:34 fluxgen Exp $
 
 
 #include "fluxbox.hh"
@@ -1438,6 +1438,25 @@ void Fluxbox::update(FbTk::Subject *changedsub) {
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateState(win);
+            }
+            // if window changed to iconic state
+            // add to icon list
+            if (win.isIconic()) {
+                Workspace *space = win.getScreen().getWorkspace(win.getWorkspaceNumber());
+                if (space != 0)
+                    space->removeWindow(&win);
+                win.getScreen().addIcon(&win);
+            }
+
+            if (win.isStuck()) {
+                // if we're sticky then reassociate window
+                // to all workspaces
+                BScreen &scr = win.getScreen();
+                if (scr.getCurrentWorkspaceID() != win.getWorkspaceNumber()) {
+                    scr.reassociateWindow(&win, 
+                                          scr.getCurrentWorkspaceID(),
+                                          true);
+                }
             }
         } else if ((&(win.layerSig())) == changedsub) { // layer signal
 
