@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Toolbar.cc,v 1.65.2.1 2003/03/30 12:24:46 rathnor Exp $
+// $Id: Toolbar.cc,v 1.65.2.2 2003/04/07 10:30:50 fluxgen Exp $
 
 #include "Toolbar.hh"
 
@@ -734,7 +734,7 @@ void Toolbar::redrawWindowLabel(bool redraw) {
 
         FluxboxWindow *foc = Fluxbox::instance()->getFocusedWindow();
         // don't draw focused window if it's not on the same screen
-        if (foc->getScreen() != &screen() || foc->getTitle().size() == 0)
+        if (&foc->getScreen() != &screen() || foc->getTitle().size() == 0)
             return;
 		
         unsigned int newlen = foc->getTitle().size();
