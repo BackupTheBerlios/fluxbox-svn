@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.hh,v 1.4.2.1 2003/04/11 15:32:11 fluxgen Exp $
+// $Id: FbWinFrame.hh,v 1.4.2.2 2003/04/11 21:59:04 fluxgen Exp $
 
 #ifndef FBWINFRAME_HH
 #define FBWINFRAME_HH
@@ -85,6 +85,11 @@ public:
     void addRightButton(FbTk::Button *btn);
     /// remove all buttons from titlebar
     void removeAllButtons();
+    /// adds a button to label window
+    void addLabelButton(FbTk::Button &btn);
+    /// removes a specific button from label window
+    void removeLabelButton(FbTk::Button &btn);
+
     /// attach a client window for client area
     void setClientWindow(Window win);
     /// same as above but with FbWindow
@@ -143,6 +148,7 @@ public:
     inline FbTk::FbWindow &gripRight() { return m_grip_right; }
     inline bool focused() const { return m_focused; }
     inline bool isShaded() const { return m_shaded; }
+    inline const FbWinFrameTheme &theme() const { return m_theme; }
     /// @return titlebar height
     unsigned int titleHeight() const;
     /// @return size of button
@@ -190,7 +196,7 @@ private:
     typedef std::vector<FbTk::Button *> ButtonList;
     ButtonList m_buttons_left, ///< buttons to the left
         m_buttons_right; ///< buttons to the right
-    
+    ButtonList m_labelbuttons; ///< holds buttons inside label window
     std::string m_titletext; ///< text to be displayed int m_label
     int m_bevel;  ///< bevel between titlebar items and titlebar
     bool m_use_titlebar; ///< if we should use titlebar
