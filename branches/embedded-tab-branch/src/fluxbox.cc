@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.104.2.6 2003/04/11 13:45:12 fluxgen Exp $
+// $Id: fluxbox.cc,v 1.104.2.7 2003/04/11 22:19:43 fluxgen Exp $
 
 
 #include "fluxbox.hh"
@@ -712,11 +712,10 @@ void Fluxbox::handleEvent(XEvent * const e) {
             if (client != 0) {
                 win->destroyNotifyEvent(e->xdestroywindow);
 
-                removeWindowSearch(client->window());
-
                 delete client;
                 
-                if (win->numClients() == 0) {
+                if (win->numClients() == 0 ||
+                    &win->winClient() == client && win->numClients() == 1) {
                     delete win;
                 }
 
@@ -959,7 +958,6 @@ void Fluxbox::handleClientMessage(XClientMessageEvent &ce) {
 #ifdef DEBUG
     cerr<<__FILE__<<"("<<__LINE__<<"): ClientMessage. data.l[0]=0x"<<hex<<ce.data.l[0]<<
 	"  message_type=0x"<<ce.message_type<<dec<<endl;
-	
 #endif // DEBUG
 
     if (ce.format != 32)
@@ -1028,219 +1026,221 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
 			
        
 
-            if (screen) {
-#ifdef DEBUG
-                cerr<<"KeyEvent"<<endl;
-#endif
-                //find action
-                Keys::KeyAction action = key->getAction(&ke);
-#ifdef DEBUG
-                const char *actionstr = key->getActionStr(action);
-                if (actionstr)
-                    cerr<<"KeyAction("<<actionstr<<")"<<endl;				
-#endif
-                if (action==Keys::LASTKEYGRAB) //if action not found end case
-                    break;
+            if (screen == 0)
+                break;
 
-                // what to allow if moving
-                if (focused_window && focused_window->isMoving()) {
-                    int allowed = false;
-                    switch (action) {
-                    case Keys::WORKSPACE:
-                    case Keys::SENDTOWORKSPACE:
-                    case Keys::WORKSPACE1:
-                    case Keys::WORKSPACE2:
-                    case Keys::WORKSPACE3:
-                    case Keys::WORKSPACE4:
-                    case Keys::WORKSPACE5:
-                    case Keys::WORKSPACE6:
-                    case Keys::WORKSPACE7:
-                    case Keys::WORKSPACE8:
-                    case Keys::WORKSPACE9:
-                    case Keys::WORKSPACE10:
-                    case Keys::WORKSPACE11:
-                    case Keys::WORKSPACE12:
-                    case Keys::NEXTWORKSPACE:
-                    case Keys::PREVWORKSPACE:
-                    case Keys::LEFTWORKSPACE:
-                    case Keys::RIGHTWORKSPACE:
-                        allowed = true;
-                        break;
-                    default:
-                        allowed = false;
-                    }
-                    if (!allowed) break;
-                }
+#ifdef DEBUG
+            cerr<<"KeyEvent"<<endl;
+#endif
+            //find action
+            Keys::KeyAction action = key->getAction(&ke);
+#ifdef DEBUG
+            const char *actionstr = key->getActionStr(action);
+            if (actionstr)
+                cerr<<"KeyAction("<<actionstr<<")"<<endl;				
+#endif
+            if (action==Keys::LASTKEYGRAB) //if action not found end case
+                break;
 
-                switch (action) {					
+            // what to allow if moving
+            if (focused_window && focused_window->isMoving()) {
+                int allowed = false;
+                switch (action) {
                 case Keys::WORKSPACE:
-                    // Workspace1 has id 0, hence -1
-                    screen->changeWorkspaceID(key->getParam()-1);
-                    break;
                 case Keys::SENDTOWORKSPACE:
-                    // Workspace1 has id 0, hence -1
-                    screen->sendToWorkspace(key->getParam()-1);
-                    break;
-                    // NOTE!!! The WORKSPACEn commands are not needed anymore
                 case Keys::WORKSPACE1:
-                    screen->changeWorkspaceID(0);
-                    break;
                 case Keys::WORKSPACE2:
-                    screen->changeWorkspaceID(1);
-                    break;
                 case Keys::WORKSPACE3:
-                    screen->changeWorkspaceID(2);
-                    break;
                 case Keys::WORKSPACE4:
-                    screen->changeWorkspaceID(3);
-                    break;
                 case Keys::WORKSPACE5:
-                    screen->changeWorkspaceID(4);
-                    break;
                 case Keys::WORKSPACE6:
-                    screen->changeWorkspaceID(5);
-                    break;
                 case Keys::WORKSPACE7:
-                    screen->changeWorkspaceID(6);
-                    break;
                 case Keys::WORKSPACE8:
-                    screen->changeWorkspaceID(7);
-                    break;
                 case Keys::WORKSPACE9:
-                    screen->changeWorkspaceID(8);
-                    break;
                 case Keys::WORKSPACE10:
-                    screen->changeWorkspaceID(9);
-                    break;
                 case Keys::WORKSPACE11:
-                    screen->changeWorkspaceID(10);
-                    break;
                 case Keys::WORKSPACE12:
-                    screen->changeWorkspaceID(11);
-                    break;
                 case Keys::NEXTWORKSPACE:
-                    screen->nextWorkspace(key->getParam());
-                    break;
                 case Keys::PREVWORKSPACE:
-                    screen->prevWorkspace(key->getParam());
-                    break;
                 case Keys::LEFTWORKSPACE:
-                    screen->leftWorkspace(key->getParam());
-                    break;
                 case Keys::RIGHTWORKSPACE:
-                    screen->rightWorkspace(key->getParam());
+                    allowed = true;
                     break;
-                case Keys::KILLWINDOW: //kill the current window
-                    if (focused_window) {
-                        XKillClient(screen->getBaseDisplay()->getXDisplay(),
-                                    focused_window->getClientWindow());
-                    }
-                    break;
-                case Keys::NEXTWINDOW:	//activate next window
-                    screen->nextFocus(key->getParam());
-                    break;
-                case Keys::PREVWINDOW:	//activate prev window
-                    screen->prevFocus(key->getParam());
-                    break;
-                case Keys::NEXTTAB: 
-                    if (focused_window && focused_window->numClients() > 1)
-                        focused_window->nextClient();                        
-                    break;						
-                case Keys::PREVTAB: 
-                    if (focused_window && focused_window->numClients() > 1)
-                        focused_window->prevClient();
-
-                    break;
-                case Keys::FIRSTTAB:
-                    cerr<<"FIRSTTAB TODO!"<<endl;
-                    break;
-                case Keys::LASTTAB:
-                    cerr<<"LASTTAB TODO!"<<endl;
-                    break;
-                case Keys::MOVETABPREV:
-                    cerr<<"MOVETABPREV TODO!"<<endl;
-                    break;
-                case Keys::MOVETABNEXT:
-                    cerr<<"MOVETABNEXT TODO!"<<endl;
-                    break;
-                case Keys::ATTACHLAST:
-                    //!! just attach last window to focused window
-                    if (focused_window) {
-                        Workspace *space = screen->getCurrentWorkspace();
-                        Workspace::Windows &wins = space->getWindowList();
-                        if (wins.size() == 1)
-                            break;
-                        Workspace::Windows::iterator it = wins.begin();
-                        for (; it != wins.end(); ++it) {
-                            if ((*it) != focused_window) {
-                                focused_window->attachClient((*it)->winClient());
-                                break;
-                            }
-                        }
-                    }
-                    break;
-                case Keys::DETACHCLIENT:
-                    if (focused_window) {                        
-                        focused_window->detachClient(focused_window->winClient());
-                    }
-                    break;
-                case Keys::EXECUTE: //execute command on keypress
-                    {
-                        FbCommands::ExecuteCmd cmd(key->getExecCommand());
-                        cmd.execute();			
-                    }
-                    break;
-                case Keys::QUIT:
-                    {
-                        shutdown();
-                    }
-                    break;
-                case Keys::ROOTMENU: //show root menu
-                    {
-                        ScreenList::iterator it = screenList.begin();
-                        ScreenList::iterator it_end = screenList.end();
-
-                        for (; it != it_end; ++it) {
-
-                            BScreen *screen = (*it);
-                            if (ke.window != screen->getRootWindow())
-                                continue;
-						
-                            //calculate placement of workspace menu
-                            //and show/hide it				
-                            int mx = ke.x_root -
-                                (screen->getRootmenu()->width() / 2);
-                            int my = ke.y_root -
-                                (screen->getRootmenu()->titleHeight() / 2);
-
-                            if (mx < 0) mx = 0;
-                            if (my < 0) my = 0;
-
-                            if (mx + screen->getRootmenu()->width() > screen->getWidth()) {
-                                mx = screen->getWidth() -
-                                    screen->getRootmenu()->width() -
-                                    screen->getBorderWidth();
-                            }
-
-                            if (my + screen->getRootmenu()->height() >
-                                screen->getHeight()) {
-                                my = screen->getHeight() -
-                                    screen->getRootmenu()->height() -
-                                    screen->getBorderWidth();
-                            }
-                            screen->getRootmenu()->move(mx, my);
-
-                            if (! screen->getRootmenu()->isVisible()) {
-                                checkMenu();
-                                screen->getRootmenu()->show();
-                            }
-                        }
-                    }
-                    break;
-                default: //try to see if its a window action
-                    doWindowAction(action, key->getParam());
+                default:
+                    allowed = false;
                 }
+                if (!allowed) break;
             }
+
+            switch (action) {					
+            case Keys::WORKSPACE:
+                // Workspace1 has id 0, hence -1
+                screen->changeWorkspaceID(key->getParam()-1);
+                break;
+            case Keys::SENDTOWORKSPACE:
+                // Workspace1 has id 0, hence -1
+                screen->sendToWorkspace(key->getParam()-1);
+                break;
+                // NOTE!!! The WORKSPACEn commands are not needed anymore
+            case Keys::WORKSPACE1:
+                screen->changeWorkspaceID(0);
+                break;
+            case Keys::WORKSPACE2:
+                screen->changeWorkspaceID(1);
+                break;
+            case Keys::WORKSPACE3:
+                screen->changeWorkspaceID(2);
+                break;
+            case Keys::WORKSPACE4:
+                screen->changeWorkspaceID(3);
+                break;
+            case Keys::WORKSPACE5:
+                screen->changeWorkspaceID(4);
+                break;
+            case Keys::WORKSPACE6:
+                screen->changeWorkspaceID(5);
+                break;
+            case Keys::WORKSPACE7:
+                screen->changeWorkspaceID(6);
+                break;
+            case Keys::WORKSPACE8:
+                screen->changeWorkspaceID(7);
+                break;
+            case Keys::WORKSPACE9:
+                screen->changeWorkspaceID(8);
+                break;
+            case Keys::WORKSPACE10:
+                screen->changeWorkspaceID(9);
+                break;
+            case Keys::WORKSPACE11:
+                screen->changeWorkspaceID(10);
+                break;
+            case Keys::WORKSPACE12:
+                screen->changeWorkspaceID(11);
+                break;
+            case Keys::NEXTWORKSPACE:
+                screen->nextWorkspace(key->getParam());
+                break;
+            case Keys::PREVWORKSPACE:
+                screen->prevWorkspace(key->getParam());
+                break;
+            case Keys::LEFTWORKSPACE:
+                screen->leftWorkspace(key->getParam());
+                break;
+            case Keys::RIGHTWORKSPACE:
+                screen->rightWorkspace(key->getParam());
+                break;
+            case Keys::KILLWINDOW: //kill the current window
+                if (focused_window) {
+                    XKillClient(screen->getBaseDisplay()->getXDisplay(),
+                                focused_window->getClientWindow());
+                }
+                break;
+            case Keys::NEXTWINDOW:	//activate next window
+                screen->nextFocus(key->getParam());
+                break;
+            case Keys::PREVWINDOW:	//activate prev window
+                screen->prevFocus(key->getParam());
+                break;
+            case Keys::NEXTTAB: 
+                if (focused_window && focused_window->numClients() > 1)
+                    focused_window->nextClient();                        
+                break;						
+            case Keys::PREVTAB: 
+                if (focused_window && focused_window->numClients() > 1)
+                    focused_window->prevClient();
+
+                break;
+            case Keys::FIRSTTAB:
+                cerr<<"FIRSTTAB TODO!"<<endl;
+                break;
+            case Keys::LASTTAB:
+                cerr<<"LASTTAB TODO!"<<endl;
+                break;
+            case Keys::MOVETABPREV:
+                cerr<<"MOVETABPREV TODO!"<<endl;
+                break;
+            case Keys::MOVETABNEXT:
+                cerr<<"MOVETABNEXT TODO!"<<endl;
+                break;
+            case Keys::ATTACHLAST:
+                //!! just attach last window to focused window
+                if (focused_window) {
+                    Workspace *space = screen->getCurrentWorkspace();
+                    Workspace::Windows &wins = space->getWindowList();
+                    if (wins.size() == 1)
+                        break;
+                    Workspace::Windows::iterator it = wins.begin();
+                    for (; it != wins.end(); ++it) {
+                        if ((*it) != focused_window) {
+                            focused_window->attachClient((*it)->winClient());
+                            break;
+                        }
+                    }
+                }
+                break;
+            case Keys::DETACHCLIENT:
+                if (focused_window) {                        
+                    focused_window->detachClient(focused_window->winClient());
+                }
+                break;
+            case Keys::EXECUTE: //execute command on keypress
+                {
+                    FbCommands::ExecuteCmd cmd(key->getExecCommand());
+                    cmd.execute();			
+                }
+                break;
+            case Keys::QUIT:
+                {
+                    shutdown();
+                }
+                break;
+            case Keys::ROOTMENU: //show root menu
+                {
+                    ScreenList::iterator it = screenList.begin();
+                    ScreenList::iterator it_end = screenList.end();
+
+                    for (; it != it_end; ++it) {
+
+                        BScreen *screen = (*it);
+                        if (ke.window != screen->getRootWindow())
+                            continue;
+						
+                        //calculate placement of workspace menu
+                        //and show/hide it				
+                        int mx = ke.x_root -
+                            (screen->getRootmenu()->width() / 2);
+                        int my = ke.y_root -
+                            (screen->getRootmenu()->titleHeight() / 2);
+
+                        if (mx < 0) mx = 0;
+                        if (my < 0) my = 0;
+
+                        if (mx + screen->getRootmenu()->width() > screen->getWidth()) {
+                            mx = screen->getWidth() -
+                                screen->getRootmenu()->width() -
+                                screen->getBorderWidth();
+                        }
+
+                        if (my + screen->getRootmenu()->height() >
+                            screen->getHeight()) {
+                            my = screen->getHeight() -
+                                screen->getRootmenu()->height() -
+                                screen->getBorderWidth();
+                        }
+                        screen->getRootmenu()->move(mx, my);
+
+                        if (! screen->getRootmenu()->isVisible()) {
+                            checkMenu();
+                            screen->getRootmenu()->show();
+                        }
+                    }
+                }
+                break;
+            default: //try to see if its a window action
+                doWindowAction(action, key->getParam());
+            }
+            
             break;
         }
 	
