@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.1 2003/04/07 10:05:32 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.2 2003/04/07 20:08:26 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -381,10 +381,8 @@ void FluxboxWindow::init() {
         getLayerItem().setLayer(getTransientFor()->getLayerItem().getLayer());       
     else // if no parent then set default layer
         moveToLayer(m_layernum);
-
-
     
-    screen.getWorkspace(workspace_number)->addWindow(this, place_window);
+    screen.getWorkspace(workspace_number)->addWindow(*this, place_window);
 
     moveResize(m_frame.x(), m_frame.y(), m_frame.width(), m_frame.height());
 
@@ -415,12 +413,11 @@ void FluxboxWindow::init() {
 /// attach a client to this window and destroy old window
 void FluxboxWindow::attachClient(WinClient &client) {
     //!! TODO: check for isGroupable in client
-    if (client.m_win == this)
+    if (client.m_win == this) {
         return;
+    }
 #ifdef DEBUG
     cerr<<__FILE__<<"("<<__FUNCTION__<<")["<<this<<"]"<<endl;
-#endif // DEBUG
-#ifdef DEBUG
     cerr<<"attach client window = "<<hex<<client.window()<<dec<<endl;
 #endif // DEBUG    
     // reparent client win to this frame 
@@ -437,6 +434,7 @@ void FluxboxWindow::attachClient(WinClient &client) {
         delete old_win;
 
     }
+
 #ifdef DEBUG
     XSync(display, False); // so we see error/warnings in time
     cerr<<"destroyed old window "<<client.window()<<endl;
@@ -489,6 +487,7 @@ bool FluxboxWindow::removeClient(WinClient &client) {
 #endif // DEBUG
     
     // set next client to be focused
+    // if the client we're about to remove is the last client then set prev client
     if (&client == m_clientlist.back())
         prevClient();
     else
@@ -1146,15 +1145,10 @@ void FluxboxWindow::show() {
 */
 void FluxboxWindow::iconify() {
 
-    if (iconic) // no need to iconify if we're already
+    if (isIconic()) // no need to iconify if we're already
         return;
 
     m_windowmenu.hide();
-
-    m_client->setEventMask(NoEventMask);
-    m_client->hide();
-    m_client->setEventMask(PropertyChangeMask | StructureNotifyMask | FocusChangeMask);
-
     visible = false;
     iconic = true;
 	
@@ -1164,21 +1158,31 @@ void FluxboxWindow::iconify() {
 
     screen.getWorkspace(workspace_number)->removeWindow(this);
 
-    if (m_client->transient_for) {
-        if (! m_client->transient_for->iconic)
-            m_client->transient_for->iconify();
-    }
 
     screen.addIcon(this);
 
-    if (m_client->transients.size()) {
-        std::list<FluxboxWindow *>::iterator it = m_client->transients.begin();
-        std::list<FluxboxWindow *>::iterator it_end = m_client->transients.end();
-        for (; it != it_end; ++it) {
-            if (! (*it)->iconic)
-                (*it)->iconify();
+    ClientList::iterator client_it = m_clientlist.begin();
+    const ClientList::iterator client_it_end = m_clientlist.end();
+    for (; client_it != client_it_end; ++client_it) {
+        WinClient &client = **client_it;
+        client.setEventMask(NoEventMask);
+        client.hide();
+        client.setEventMask(PropertyChangeMask | StructureNotifyMask | FocusChangeMask);
+        if (client.transientFor()) {
+            if (! client.transientFor()->isIconic())
+                client.transientFor()->iconify();
+        }
+
+        if (client.transients.size()) {
+            std::list<FluxboxWindow *>::iterator transient_it = client.transients.begin();
+            std::list<FluxboxWindow *>::iterator transient_it_end = client.transients.end();
+            for (; transient_it != transient_it_end; ++transient_it) {
+                if (! (*transient_it)->isIconic())
+                    (*transient_it)->iconify();
+            }
         }
     }
+
 
 }
 
@@ -1186,7 +1190,7 @@ void FluxboxWindow::iconify() {
 void FluxboxWindow::deiconify(bool reassoc, bool do_raise) {
     if (iconic || reassoc) {
         screen.reassociateWindow(this, screen.getCurrentWorkspace()->workspaceID(), false);
-  } else if (moving || workspace_number != screen.getCurrentWorkspace()->workspaceID())
+    } else if (moving || workspace_number != screen.getCurrentWorkspace()->workspaceID())
         return;
 
     bool was_iconic = iconic;
@@ -2630,8 +2634,9 @@ void FluxboxWindow::restore(WinClient &client, bool remap) {
         return;
 
     XChangeSaveSet(display, client.window(), SetModeDelete);
-    XSelectInput(display, client.window(), NoEventMask);
-    //!!
+    client.setEventMask(NoEventMask);
+
+    //!! TODO
     //restoreGravity();
 
     client.hide();
@@ -2671,7 +2676,10 @@ void FluxboxWindow::timeout() {
 }
 
 bool FluxboxWindow::isTransient() const { 
-    return ((m_client->transient_for) ? true : false); 
+    if (m_client == 0)
+        return false;
+    
+    return (m_client->transientFor() ? true : false); 
 }
 
 bool FluxboxWindow::hasTransient() const {
