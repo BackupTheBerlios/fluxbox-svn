@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.hh,v 1.1.2.3 2003/04/09 16:00:52 fluxgen Exp $
+// $Id: WinClient.hh,v 1.1.2.4 2003/04/12 11:04:40 fluxgen Exp $
 
 #ifndef WINCLIENT_HH
 #define WINCLIENT_HH
@@ -66,6 +66,8 @@ public:
 
     const std::string &title() const { return m_title; }
     const std::string &iconTitle() const { return m_icon_title; }
+    const FluxboxWindow *fbwindow() const { return m_win; }
+    FluxboxWindow *fbwindow() { return m_win; }
     /**
        !! TODO !!
        remove or move these to private
