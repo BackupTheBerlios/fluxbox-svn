@@ -1,0 +1,31 @@
+News for 0.1.9:
+  * Improved fluxbox-generate_menu script.
+    Which now installs itself so you can regenerate the menu any time,
+    and with gnome and kde menus
+	run: fluxbox-generate_menu -h
+	for more information.
+  * Default 24 hour clock format
+  * Code cleaning
+  * Compiles with no errors on Mac OS X
+  * Now compiles with Intel Compiler 6.0 and GCC 3.1    
+  * New keybindings:
+    * FirstTab
+       Go to first tab
+    * LastTab
+       Go to last tab
+    * MoveTabPrev
+       Move current tab left
+    * MoveTabNext
+       Move current tab right
+  * "Allow Desktop MouseWheel Switching" runtime option
+  * Configurable geometry show
+    configure in init with: session.screen0.showwindowposition
+  * Now saves resources when you change them in the menu and not when you
+    exit Fluxbox. So you can edit the init file and the reconfigure/restart 
+    Fluxbox to activate changes.
+
+Bugfixes:
+  * bug [ 552723 ] removing decorations while shaded.
+  * shade bug while vertical rotated tabs and tabs off 
+  * bug [ 515483 ] "XMMS Problem"
+  * Fixed transient bug which cause Fluxbox to crach ( the "acroread" bug )
