@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.hh,v 1.73 2003/03/03 21:51:06 rathnor Exp $
+// $Id: Screen.hh,v 1.73.2.1 2003/04/04 15:07:45 fluxgen Exp $
 
 #ifndef	 SCREEN_HH
 #define	 SCREEN_HH
@@ -58,6 +58,7 @@ class Slit;
 class Toolbar;
 class FbWinFrameTheme;
 class RootTheme;
+class WinClient;
 
 namespace FbTk {
 class MenuTheme;
@@ -301,6 +302,7 @@ public:
     void updateNetizenWindowLower(Window);
     /// create window frame for client window and attach it
     FluxboxWindow *createWindow(Window clientwin);
+    FluxboxWindow *createWindow(WinClient &client);
     void setupWindowActions(FluxboxWindow &win);
 
     enum { ROWSMARTPLACEMENT = 1, COLSMARTPLACEMENT, CASCADEPLACEMENT, LEFTRIGHT,
