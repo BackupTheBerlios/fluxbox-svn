@@ -1,5 +1,15 @@
 (Format: Year/Month/Day)
 Changes for 0.9.1:
+*03/04/07:
+   * Moved client specific stuff from FluxboxWindow to WinClient
+     Window.hh/cc, fluxbox.cc, Screen.cc/hh
+   * Fixed client list update in Ewmh module
+     Ewmh.cc
+*03/04/04:
+   * Added WinClient.hh/cc which holds client information
+*03/04/03:
+   * Added AttachClient and DetachClient key actions
+     Keys.hh/cc
 *03/03/22:
    * Added cursor to fbrun (Henrik)
      FbRun.hh/cc
