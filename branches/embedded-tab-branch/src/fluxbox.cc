@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.104.2.1 2003/03/30 12:24:46 rathnor Exp $
+// $Id: fluxbox.cc,v 1.104.2.2 2003/04/07 11:01:34 fluxgen Exp $
 
 
 #include "fluxbox.hh"
@@ -39,6 +39,7 @@
 #include "ImageControl.hh"
 #include "EventManager.hh"
 #include "FbCommands.hh"
+#include "WinClient.hh"
 
 //Use GNU extensions
 #ifndef	 _GNU_SOURCE
@@ -508,10 +509,10 @@ Fluxbox::~Fluxbox() {
 	
 }
 
-//---------- setupConfigFiles -----------
-// setup the configutation files in 
-// home directory
-//---------------------------------------
+/**
+ setup the configutation files in 
+ home directory
+*/
 void Fluxbox::setupConfigFiles() {
 
     bool createInit, createKeys, createMenu;
@@ -702,12 +703,23 @@ void Fluxbox::handleEvent(XEvent * const e) {
     case CreateNotify:
 	break;
     case DestroyNotify: {
-        FluxboxWindow *win = 0;
+#ifdef DEBUG
+        cerr<<__FILE__<<"("<<__FUNCTION__<<"): DestroyNotify"<<endl;
+#endif // DEBUG
+        FluxboxWindow *win = searchWindow(e->xdestroywindow.window);        
+        if (win != 0) {
+            WinClient *client = win->findClient(e->xdestroywindow.window);
+            if (client != 0) {
+                win->destroyNotifyEvent(e->xdestroywindow);
 
-        if ((win = searchWindow(e->xdestroywindow.window)) && win->getClientWindow() == e->xdestroywindow.window) {
-            win->destroyNotifyEvent(e->xdestroywindow);
-            removeWindowSearch(win->getClientWindow());
-            delete win;
+                removeWindowSearch(client->window());
+
+                win->removeClient(*client);
+                if (win->numClients() == 0) {            
+                    delete win;
+                }
+                delete client;
+            }
         } 
 
     }
@@ -923,27 +935,34 @@ void Fluxbox::handleUnmapNotify(XUnmapEvent &ue) {
 	
     BScreen *screen = searchScreen(ue.event);
 	
-    if ( (ue.event != ue.window) && (screen != 0 || !ue.send_event))
+    if ( ue.event != ue.window && (screen != 0 || !ue.send_event))
         return;
 	
     if ((win = searchWindow(ue.window)) != 0) {
+        WinClient *client = win->findClient(ue.window);
 
-        win->unmapNotifyEvent(ue); 
-        if (win->getClientWindow() == ue.window) {
+
+        if (client != 0) {
+            win->unmapNotifyEvent(ue);
+
             if (win == focused_window)
                 focused_window = 0;
-            removeWindowSearch(win->getClientWindow());
-            delete win;
-            win = 0;
-        }
-  
+            
+            removeWindowSearch(client->window());
+
+            if (win->numClients() == 0) {
+                delete win;
+                win = 0;
+            }
+            delete client;
+        }  
     }
 
 }
 
-//------------ handleClientMessage --------
-// Handles XClientMessageEvent
-//-----------------------------------------
+/**
+ * Handles XClientMessageEvent
+ */
 void Fluxbox::handleClientMessage(XClientMessageEvent &ce) {
 #ifdef DEBUG
     cerr<<__FILE__<<"("<<__LINE__<<"): ClientMessage. data.l[0]=0x"<<hex<<ce.data.l[0]<<
@@ -1005,9 +1024,10 @@ void Fluxbox::handleClientMessage(XClientMessageEvent &ce) {
         }
     }
 }
-//----------- handleKeyEvent ---------------
-// Handles KeyRelease and KeyPress events
-//------------------------------------------
+
+/**
+ Handles KeyRelease and KeyPress events
+*/
 void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
     switch (ke.type) {
     case KeyPress:
@@ -1131,28 +1151,13 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
                     screen->prevFocus(key->getParam());
                     break;
                 case Keys::NEXTTAB: 
-                    if (focused_window && focused_window->getTab()) {
-                        Tab *tab = focused_window->getTab();
-                        if (tab->next()) {
-                            tab->next()->getWindow()->raise();
-                            tab->next()->getWindow()->setInputFocus();
-                        } else {
-                            tab->first()->getWindow()->raise();
-                            tab->first()->getWindow()->setInputFocus();
-                        }	
-                    }
+                    if (focused_window && focused_window->numClients() > 1)
+                        focused_window->nextClient();                        
                     break;						
                 case Keys::PREVTAB: 
-                    if (focused_window && focused_window->getTab()) {
-                        Tab *tab = focused_window->getTab();
-                        if (tab->prev()) {
-                            tab->prev()->getWindow()->raise();
-                            tab->prev()->getWindow()->setInputFocus();
-                        } else {
-                            tab->last()->getWindow()->raise();
-                            tab->last()->getWindow()->setInputFocus();
-                        }
-                    }
+                    if (focused_window && focused_window->numClients() > 1)
+                        focused_window->prevClient();
+
                     break;
                 case Keys::FIRSTTAB:
                     if (focused_window && focused_window->getTab()) {
@@ -1176,6 +1181,27 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
                 case Keys::MOVETABNEXT:
                     if (focused_window && focused_window->getTab()) {
                         focused_window->getTab()->moveNext();
+                    }
+                    break;
+                case Keys::ATTACHLAST:
+                    //!! just attach last window to focused window
+                    if (focused_window) {
+                        Workspace *space = screen->getCurrentWorkspace();
+                        Workspace::Windows &wins = space->getWindowList();
+                        if (wins.size() == 1)
+                            break;
+                        Workspace::Windows::iterator it = wins.begin();
+                        for (; it != wins.end(); ++it) {
+                            if ((*it) != focused_window) {
+                                focused_window->attachClient((*it)->winClient());
+                                break;
+                            }
+                        }
+                    }
+                    break;
+                case Keys::DETACHCLIENT:
+                    if (focused_window) {                        
+                        focused_window->detachClient(focused_window->winClient());
                     }
                     break;
                 case Keys::EXECUTE: //execute command on keypress
@@ -1239,7 +1265,7 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
         }
 	
     default:
-	break;
+        break;
     }
 	
 	
@@ -1248,8 +1274,8 @@ void Fluxbox::doWindowAction(Keys::KeyAction action, const int param) {
     if (!focused_window)
         return;
 
-    unsigned int t_placement = focused_window->getScreen()->getTabPlacement();
-    unsigned int t_alignment = focused_window->getScreen()->getTabAlignment();
+    unsigned int t_placement = focused_window->getScreen().getTabPlacement();
+    unsigned int t_alignment = focused_window->getScreen().getTabAlignment();
 	
     switch (action) {
     case Keys::ICONIFY:
@@ -1401,7 +1427,7 @@ void Fluxbox::doWindowAction(Keys::KeyAction action, const int param) {
 
 }
 
-// handle system signals here
+/// handle system signals
 void Fluxbox::handleSignal(int signum) {
     I18n *i18n = I18n::instance();
     static int re_enter = 0;
@@ -1455,50 +1481,43 @@ void Fluxbox::handleSignal(int signum) {
 
 
 void Fluxbox::update(FbTk::Subject *changedsub) {
-//TODO: fix signaling, this does not look good
+    //TODO: fix signaling, this does not look good
     if (typeid(*changedsub) == typeid(FluxboxWindow::WinSubject)) {
         FluxboxWindow::WinSubject *winsub = dynamic_cast<FluxboxWindow::WinSubject *>(changedsub);
         FluxboxWindow &win = winsub->win();
         if ((&(win.hintSig())) == changedsub) { // hint signal
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<") WINDOW hint signal from "<<&win<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateHints(win);
             }
         } else if ((&(win.stateSig())) == changedsub) { // state signal
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<") WINDOW state signal from "<<&win<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateState(win);
             }
         } else if ((&(win.layerSig())) == changedsub) { // layer signal
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<") WINDOW layer signal from "<<&win<<endl;
-#endif // DEBUG
+
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateLayer(win);
             }
         } else if ((&(win.dieSig())) == changedsub) { // window death signal
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<") WINDOW die signal from "<<&win<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateWindowClose(win);
             }
+            // make sure each workspace get this 
+            BScreen &scr = win.getScreen();
+            for (int workspace = 0; workspace < scr.getNumberOfWorkspaces();
+                 ++workspace) {
+                scr.getWorkspace(workspace)->removeWindow(&win);
+            }
+            
         } else if ((&(win.workspaceSig())) == changedsub) {  // workspace signal
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<") WINDOW workspace signal from "<<&win<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateWorkspace(win);
-            }
+            }            
         } else {
 #ifdef DEBUG
             cerr<<__FILE__<<"("<<__LINE__<<"): WINDOW uncought signal from "<<&win<<endl;
@@ -1509,38 +1528,34 @@ void Fluxbox::update(FbTk::Subject *changedsub) {
         BScreen::ScreenSubject *subj = dynamic_cast<BScreen::ScreenSubject *>(changedsub);
         BScreen &screen = subj->screen();
         if ((&(screen.workspaceCountSig())) == changedsub) {
-#ifdef DEBUG	
-            cerr<<__FILE__<<"("<<__LINE__<<"): SCREEN workspace count signal"<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateWorkspaceCount(screen);
             }
         } else if ((&(screen.workspaceNamesSig())) == changedsub) {
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<"): SCREEN workspace names signal"<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateWorkspaceNames(screen);
             }
         } else if ((&(screen.currentWorkspaceSig())) == changedsub) {
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<"): SCREEN current workspace signal"<<endl;
-#endif // DEBUG	
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateCurrentWorkspace(screen);
             }
         } else if ((&(screen.clientListSig())) == changedsub) {
-#ifdef DEBUG
-            cerr<<__FILE__<<"("<<__LINE__<<"): SCREEN client list signal"<<endl;
-#endif // DEBUG
             for (size_t i=0; i<m_atomhandler.size(); ++i) {
                 if (m_atomhandler[i]->update())
                     m_atomhandler[i]->updateClientList(screen);
             }
         }
+    } else if (typeid(*changedsub) == typeid(WinClient::WinClientSubj)) {
+        WinClient::WinClientSubj *subj = dynamic_cast<WinClient::WinClientSubj *>(changedsub);
+        WinClient &client = subj->winClient();
+        removeWindowSearch(client.window());
+        //!! TODO
+#ifdef DEBUG
+        cerr<<__FILE__<<"("<<__FUNCTION__<<") TODO: signal stuff for client death!!"<<endl;
+#endif // DEBUG        
     }
 }
 
@@ -1549,6 +1564,7 @@ void Fluxbox::attachSignals(FluxboxWindow &win) {
     win.stateSig().attach(this);
     win.workspaceSig().attach(this);
     win.layerSig().attach(this);
+    win.winClient().dieSig().attach(this);
     win.dieSig().attach(this);
     for (size_t i=0; i<m_atomhandler.size(); ++i) {
         m_atomhandler[i]->setupWindow(win);
@@ -2175,9 +2191,9 @@ void Fluxbox::real_reconfigure() {
 
 }
 
-//------------- reconfigureTabs ----------
-// Reconfigure all tabs size and increase steps
-// ---------------------------------------
+/**
+ Reconfigure all tabs size and increase steps
+*/
 void Fluxbox::reconfigureTabs() {
     //tab reconfiguring
     TabList::iterator it = tabSearch.begin();
@@ -2289,7 +2305,7 @@ void Fluxbox::setFocusedWindow(FluxboxWindow *win) {
 
     if (focused_window != 0) {
         old_win = focused_window;
-        old_screen = old_win->getScreen();
+        old_screen = &old_win->getScreen();
 		
         old_tbar = old_screen->getToolbar();
         old_wkspc = old_screen->getWorkspace(old_win->getWorkspaceNumber());
@@ -2303,7 +2319,7 @@ void Fluxbox::setFocusedWindow(FluxboxWindow *win) {
         // make sure we have a valid win pointer with a valid screen
         ScreenList::iterator winscreen = 
             std::find(screenList.begin(), screenList.end(),
-                      win->getScreen());
+                      &win->getScreen());
         if (winscreen == screenList.end()) {
             focused_window = 0; // the window pointer wasn't valid, mark no window focused
         } else {
