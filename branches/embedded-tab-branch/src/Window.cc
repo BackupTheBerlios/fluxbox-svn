@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.129.2.5 2003/04/11 10:19:28 fluxgen Exp $
+// $Id: Window.cc,v 1.129.2.6 2003/04/11 13:39:32 fluxgen Exp $
 
 #include "Window.hh"
 
@@ -229,6 +229,10 @@ FluxboxWindow::~FluxboxWindow() {
     
     // notify die
     m_diesig.notify();
+
+    if (m_client != 0)
+        delete m_client; // this also removes client from our list
+
 
     if (m_clientlist.size() > 1) {
         cerr<<__FILE__<<"("<<__FUNCTION__<<") WARNING! clientlist > 1"<<endl;
@@ -1022,8 +1026,7 @@ bool FluxboxWindow::setInputFocus() {
 
 	m_frame.setFocus(true);
 	
-        Fluxbox *fb = Fluxbox::instance();
-        fb->setFocusedWindow(this);
+        Fluxbox::instance()->setFocusedWindow(this);
 			
         if (send_focus_message)
             m_client->sendFocus();
@@ -1060,7 +1063,6 @@ void FluxboxWindow::iconify() {
 
     m_windowmenu.hide();
     visible = false;
-    iconic = true;
 	
     setState(IconicState);
 
@@ -1074,11 +1076,12 @@ void FluxboxWindow::iconify() {
         client.hide();
         client.setEventMask(PropertyChangeMask | StructureNotifyMask | FocusChangeMask);
         if (client.transientFor()) {
-            if (! client.transientFor()->isIconic())
+            if (! client.transientFor()->isIconic()) {
                 client.transientFor()->iconify();
+            }            
         }
 
-        if (client.transients.size()) {
+        if (client.transientList().size()) {
             for_each(client.transientList().begin(),
                      client.transientList().end(),
                      mem_fun(&FluxboxWindow::iconify));
@@ -1472,6 +1475,9 @@ void FluxboxWindow::saveBlackboxHints() {
  Sets state on each client in our list
  */
 void FluxboxWindow::setState(unsigned long new_state) {
+    if (new_state == IconicState)
+        iconic = true;
+   
     current_state = new_state;
     unsigned long state[2];
     state[0] = (unsigned long) current_state;
@@ -1872,7 +1878,7 @@ void FluxboxWindow::unmapNotifyEvent(XUnmapEvent &ue) {
     cerr<<__FILE__<<"("<<__FUNCTION__<<"): 0x"<<hex<<client->window()<<dec<<endl;
 #endif // DEBUG
     
-    restore(*client, false);
+    restore(client, false);
 
 }
 
@@ -2471,39 +2477,39 @@ void FluxboxWindow::updateTransientInfo() {
              mem_fun(&WinClient::updateTransientInfo));
 }
 
-void FluxboxWindow::restore(WinClient &client, bool remap) {
-    if (client.m_win != this)
+void FluxboxWindow::restore(WinClient *client, bool remap) {
+    if (client->m_win != this)
         return;
 
-    XChangeSaveSet(display, client.window(), SetModeDelete);
-    client.setEventMask(NoEventMask);
+    XChangeSaveSet(display, client->window(), SetModeDelete);
+    client->setEventMask(NoEventMask);
 
     //!! TODO
     //restoreGravity();
 
-    client.hide();
+    client->hide();
 
     // restore old border width
-    client.setBorderWidth(client.old_bw);
+    client->setBorderWidth(client->old_bw);
 
     XEvent not_used;
-    if (! XCheckTypedWindowEvent(display, client.window(), ReparentNotify,
+    if (! XCheckTypedWindowEvent(display, client->window(), ReparentNotify,
                                  &not_used)) {
 #ifdef DEBUG
-        cerr<<"FluxboxWindow::restore: reparent 0x"<<hex<<m_client->window()<<dec<<" to root"<<endl;
+        cerr<<"FluxboxWindow::restore: reparent 0x"<<hex<<client->window()<<dec<<" to root"<<endl;
 #endif // DEBUG
 
         // reparent to root window
-        client.reparent(screen.getRootWindow(), m_frame.x(), m_frame.y());        
+        client->reparent(screen.getRootWindow(), m_frame.x(), m_frame.y());        
     }
 
-    removeClient(client);
+    if (remap)
+        client->show();
+
+    delete client;
 
     if (numClients() == 0)
         m_frame.hide();
-
-    if (remap)
-        client.show();
 
 }
 
@@ -2512,7 +2518,7 @@ void FluxboxWindow::restore(bool remap) {
         return;
 
     while (!clientList().empty()) {
-        restore(*clientList().back(), remap);
+        restore(clientList().back(), remap);
     }
 }
 
@@ -2600,7 +2606,7 @@ void FluxboxWindow::changeBlackboxHints(const BaseDisplay::BlackboxHints &net) {
 
         }
     }
-
+    
     if ((net.flags & BaseDisplay::ATTRIB_OMNIPRESENT) &&
         ((blackbox_attrib.attrib & BaseDisplay::ATTRIB_OMNIPRESENT) !=
          (net.attrib & BaseDisplay::ATTRIB_OMNIPRESENT)))
@@ -2634,7 +2640,8 @@ void FluxboxWindow::upsize() {
     m_frame.setBevel(screen.getBevelWidth());
     m_frame.handle().resize(m_frame.handle().width(), screen.getHandleWidth());
     m_frame.gripLeft().resize(m_frame.buttonHeight(), screen.getHandleWidth());
-    m_frame.gripRight().resize(m_frame.gripLeft().width(), m_frame.gripLeft().height());
+    m_frame.gripRight().resize(m_frame.gripLeft().width(), 
+                               m_frame.gripLeft().height());
 }
 
 
@@ -2648,8 +2655,12 @@ void FluxboxWindow::right_fixsize(int *gx, int *gy) {
     // calculate the size of the client window and conform it to the
     // size specified by the size hints of the client window...
     int dx = last_resize_w - m_client->base_width;
-    int titlebar_height = (decorations.titlebar ? frame().titlebar().height()  + frame().titlebar().borderWidth() : 0);
-    int handle_height = (decorations.handle ? frame().handle().height() + frame().handle().borderWidth() : 0);
+    int titlebar_height = (decorations.titlebar ? 
+                           frame().titlebar().height() +
+                           frame().titlebar().borderWidth() : 0);
+    int handle_height = (decorations.handle ? 
+                         frame().handle().height() +
+                         frame().handle().borderWidth() : 0);
 
     int dy = last_resize_h - m_client->base_height - titlebar_height - handle_height;
     if (dx < (signed) m_client->min_width)
@@ -2675,14 +2686,19 @@ void FluxboxWindow::right_fixsize(int *gx, int *gy) {
     if (gy) *gy = dy;
 
     dx = (dx * m_client->width_inc) + m_client->base_width;
-    dy = (dy * m_client->height_inc) + m_client->base_height + titlebar_height + handle_height;
+    dy = (dy * m_client->height_inc) + m_client->base_height + 
+        titlebar_height + handle_height;
     last_resize_w = dx;
     last_resize_h = dy;
 }
 
 void FluxboxWindow::left_fixsize(int *gx, int *gy) {   
-    int titlebar_height = (decorations.titlebar ? frame().titlebar().height()  + frame().titlebar().borderWidth() : 0);
-    int handle_height = (decorations.handle ? frame().handle().height() + frame().handle().borderWidth() : 0);
+    int titlebar_height = (decorations.titlebar ? 
+                           frame().titlebar().height()  + 
+                           frame().titlebar().borderWidth() : 0);
+    int handle_height = (decorations.handle ? 
+                         frame().handle().height() + 
+                         frame().handle().borderWidth() : 0);
     int decoration_height = titlebar_height + handle_height;
 
     // dx is new width = current width + difference between new and old x values
