@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.hh,v 1.1.2.1 2003/04/04 15:15:23 fluxgen Exp $
+// $Id: WinClient.hh,v 1.1.2.2 2003/04/09 08:54:10 fluxgen Exp $
 
 #ifndef WINCLIENT_HH
 #define WINCLIENT_HH
@@ -48,6 +48,8 @@ public:
     bool getAttrib(XWindowAttributes &attr) const;
     bool getWMName(XTextProperty &textprop) const;
     bool getWMIconName(XTextProperty &textprop) const;
+    void updateTitle();
+    void updateIconTitle();
 
     /// notifies when this client dies
     FbTk::Subject &dieSig() { return m_diesig; }
@@ -62,6 +64,8 @@ public:
         return (m_win == &win);
     }
 
+    const std::string &title() const { return m_title; }
+    const std::string &iconTitle() const { return m_icon_title; }
     /**
        !! TODO !!
        remove or move these to private
@@ -71,7 +75,7 @@ public:
     std::list<FluxboxWindow *> transients;  // which windows are our transients?
     Window window_group;
 
-    std::string title, icon_title;
+ 
     int x, y, old_bw;
     unsigned int width, height,
         min_width, min_height, max_width, max_height, width_inc, height_inc,
@@ -99,6 +103,7 @@ public:
     };
 
 private:
+    std::string m_title, m_icon_title;
     WinClientSubj m_diesig;
 };
 

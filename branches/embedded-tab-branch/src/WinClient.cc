@@ -19,12 +19,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.cc,v 1.1.2.1 2003/04/04 15:15:27 fluxgen Exp $
+// $Id: WinClient.cc,v 1.1.2.2 2003/04/09 08:55:03 fluxgen Exp $
 
 #include "WinClient.hh"
 
 #include "Window.hh"
 #include "fluxbox.hh"
+#include "i18n.hh"
 
 #include <iostream>
 using namespace std;
@@ -32,7 +33,7 @@ using namespace std;
 WinClient::WinClient(Window win, FluxboxWindow &fbwin):FbTk::FbWindow(win),
                      transient_for(0),
                      window_group(0),
-                     title(""), icon_title(""),
+
                      x(0), y(0), old_bw(0),
                      width(1), height(1), 
                      min_width(1), min_height(1),
@@ -48,6 +49,7 @@ WinClient::WinClient(Window win, FluxboxWindow &fbwin):FbTk::FbWindow(win),
                      mwm_hint(0),
                      blackbox_hint(0),
                      m_win(&fbwin),
+                     m_title(""), m_icon_title(""),
                      m_diesig(*this) { }
 
 WinClient::~WinClient() {
@@ -212,5 +214,70 @@ void WinClient::updateTransientInfo() {
         transient_for->m_client->transients.unique(); 
         m_win->stuck = transient_for->stuck;
     }
+
+}
+
+
+void WinClient::updateTitle() {
+    XTextProperty text_prop;
+    char **list = 0;
+    int num = 0;
+    I18n *i18n = I18n::instance();
+
+    if (getWMName(text_prop)) {
+        if (text_prop.value && text_prop.nitems > 0) {
+            if (text_prop.encoding != XA_STRING) {
+				
+                text_prop.nitems = strlen((char *) text_prop.value);
+				
+                if (XmbTextPropertyToTextList(FbTk::App::instance()->display(), &text_prop,
+                                              &list, &num) == Success &&
+                    num > 0 && *list) {
+                    m_title = static_cast<char *>(*list);
+                    XFreeStringList(list);
+                } else
+                    m_title = (char *)text_prop.value;
+					
+            } else
+                m_title = (char *)text_prop.value;
+            XFree((char *) text_prop.value);
+        } else { // ok, we don't have a name, set default name
+            m_title = i18n->getMessage(
+                                       FBNLS::WindowSet, FBNLS::WindowUnnamed,
+                                       "Unnamed");
+        }
+    } else {
+        m_title = i18n->getMessage(
+                                   FBNLS::WindowSet, FBNLS::WindowUnnamed,
+                                   "Unnamed");
+    }
+
+}
+
+void WinClient::updateIconTitle() {
+    XTextProperty text_prop;
+    char **list = 0;
+    int num = 0;
+ 
+    if (getWMIconName(text_prop)) {
+        if (text_prop.value && text_prop.nitems > 0) {
+            if (text_prop.encoding != XA_STRING) {
+                text_prop.nitems = strlen((char *) text_prop.value);
+
+                if (XmbTextPropertyToTextList(FbTk::App::instance()->display(), &text_prop,
+                                               &list, &num) == Success &&
+                    num > 0 && *list) {
+                    m_icon_title = (char *)*list;
+                    XFreeStringList(list);
+                } else
+                    m_icon_title = (char *)text_prop.value;
+            } else
+                m_icon_title = (char *)text_prop.value;
+
+            XFree((char *) text_prop.value);
+        } else
+            m_icon_title = title();
+    } else
+        m_icon_title = title();
 
 }
