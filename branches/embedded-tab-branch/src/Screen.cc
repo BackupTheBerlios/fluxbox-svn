@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118.2.2 2003/04/07 20:03:53 fluxgen Exp $
+// $Id: Screen.cc,v 1.118.2.3 2003/04/09 08:46:19 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -159,18 +159,6 @@ private:
 
 }; // End anonymous namespace
 
-//---------- resource manipulators ---------
-template<>
-void Resource<Tab::Alignment>::
-setFromString(const char *strval) {	
-    m_value = Tab::getTabAlignmentNum(strval);
-}
-
-template<>
-void Resource<Tab::Placement>::
-setFromString(const char *strval) {	
-    m_value = Tab::getTabPlacementNum(strval);
-}
 
 template<>
 void Resource<Toolbar::Placement>::
@@ -220,20 +208,6 @@ setFromString(const char *strval) {
         m_value = ToolbarHandler::ALLWINDOWS;
     else
         setDefaultValue();
-}
-
-
-//--------- resource accessors --------------
-template<>
-string Resource<Tab::Alignment>::
-getString() {
-    return Tab::getTabAlignmentString(m_value);
-}
-
-template<>
-string Resource<Tab::Placement>::
-getString() {
-    return Tab::getTabPlacementString(m_value);
 }
 
 template<>
@@ -402,7 +376,6 @@ BScreen::ScreenResource::ScreenResource(ResourceManager &rm,
     opaque_move(rm, false, "session.opaqueMove", "Session.OpaqueMove"),
     full_max(rm, true, scrname+".fullMaximization", altscrname+".FullMaximization"),
     max_over_slit(rm, true, scrname+".maxOverSlit",altscrname+".MaxOverSlit"),
-    tab_rotate_vertical(rm, true, scrname+".tab.rotatevertical", altscrname+".Tab.RotateVertical"),
     sloppy_window_grouping(rm, true, scrname+".sloppywindowgrouping", altscrname+".SloppyWindowGrouping"),
     workspace_warping(rm, true, scrname+".workspacewarping", altscrname+".WorkspaceWarping"),
     desktop_wheeling(rm, true, scrname+".desktopwheeling", altscrname+".DesktopWheeling"),
@@ -416,12 +389,8 @@ BScreen::ScreenResource::ScreenResource(ResourceManager &rm,
     workspaces(rm, 1, scrname+".workspaces", altscrname+".Workspaces"),
     toolbar_width_percent(rm, 65, scrname+".toolbar.widthPercent", altscrname+".Toolbar.WidthPercent"),
     edge_snap_threshold(rm, 0, scrname+".edgeSnapThreshold", altscrname+".EdgeSnapThreshold"),
-    tab_width(rm, 64, scrname+".tab.width", altscrname+".Tab.Width"),
-    tab_height(rm, 16, scrname+".tab.height", altscrname+".Tab.Height"),
     slit_layernum(rm, Fluxbox::instance()->getDockLayer(), scrname+".slit.layer", altscrname+".Slit.Layer"),
     toolbar_layernum(rm, Fluxbox::instance()->getDesktopLayer(), scrname+".toolbar.layer", altscrname+".Toolbar.Layer"),
-    tab_placement(rm, Tab::PTOP, scrname+".tab.placement", altscrname+".Tab.Placement"),
-    tab_alignment(rm, Tab::ALEFT, scrname+".tab.alignment", altscrname+".Tab.Alignment"),
     toolbar_mode(rm, ToolbarHandler::ICONS, scrname+".toolbar.mode", altscrname+".Toolbar.Mode"),
     toolbar_on_head(rm, 0, scrname+".toolbar.onhead", altscrname+".Toolbar.onHead"),
     toolbar_placement(rm, Toolbar::BOTTOMCENTER, scrname+".toolbar.placement", altscrname+".Toolbar.Placement")
@@ -502,14 +471,6 @@ BScreen::BScreen(ResourceManager &rm,
 
     // set database for new Theme Engine
     FbTk::ThemeManager::instance().load(fluxbox->getStyleFilename().c_str());
-
-    // special case for tab rotated
-    if (*resource.tab_rotate_vertical && 
-        ( *resource.tab_placement == Tab::PLEFT || *resource.tab_placement == Tab::PRIGHT)) {
-        theme->getWindowStyle().tab.font.rotate(90);
-    } else  {
-        theme->getWindowStyle().tab.font.rotate(0);
-    }
 
     const char *s = i18n->getMessage(
                                      FBNLS::ScreenSet, FBNLS::ScreenPositionLength,
@@ -1028,12 +989,6 @@ void BScreen::sendToWorkspace(unsigned int id, FluxboxWindow *win, bool changeWS
         if (win && &win->getScreen() == this &&
             (! win->isStuck())) {
 
-            if ( win->getTab() ) {
-                Tab *tab = win->getTab();
-                tab->disconnect();
-                tab->setPosition();
-            }
-
             if (win->isIconic()) {
                 win->deiconify();
             }
@@ -1354,15 +1309,8 @@ string BScreen::getNameOfWorkspace(unsigned int workspace) const {
 }
 
 void BScreen::reassociateGroup(FluxboxWindow *w, unsigned int wkspc_id, bool ignore_sticky) {
-    if (w->hasTab() && (w->getTab()->next() || w->getTab()->prev())) {
-        Tab *tab_it = w->getTab()->first();
-        for (; tab_it; tab_it = tab_it->next()) {
-            reassociateWindow(tab_it->getWindow(), wkspc_id, ignore_sticky);
-        }
-    } else {
-        // no tab, juts move this one
-        reassociateWindow(w, wkspc_id, ignore_sticky);
-    }
+    //!! TODO
+    cerr<<__FILE__<<"("<<__FUNCTION__<<") TODO!"<<endl;
 }
 
 void BScreen::reassociateWindow(FluxboxWindow *w, unsigned int wkspc_id, bool ignore_sticky) {
