@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.cc,v 1.14.2.3 2003/04/11 22:31:58 fluxgen Exp $
+// $Id: FbWinFrame.cc,v 1.14.2.4 2003/04/13 12:19:54 fluxgen Exp $
 
 #include "FbWinFrame.hh"
 #include "ImageControl.hh"
@@ -215,7 +215,6 @@ void FbWinFrame::addLeftButton(FbTk::Button *btn) {
     setupButton(*btn); // setup theme and other stuff
 
     m_buttons_left.push_back(btn);
-    reconfigureTitlebar();
 }
 
 void FbWinFrame::addRightButton(FbTk::Button *btn) {
@@ -225,7 +224,6 @@ void FbWinFrame::addRightButton(FbTk::Button *btn) {
     setupButton(*btn); // setup theme and other stuff
 
     m_buttons_right.push_back(btn);
-    reconfigureTitlebar();
 }
 
 void FbWinFrame::removeAllButtons() {
@@ -239,9 +237,6 @@ void FbWinFrame::removeAllButtons() {
         delete m_buttons_right.back();
         m_buttons_right.pop_back();
     }
-
-    // update titlebar
-    reconfigureTitlebar();
 }
 
 void FbWinFrame::addLabelButton(FbTk::Button &btn) {
@@ -253,8 +248,6 @@ void FbWinFrame::addLabelButton(FbTk::Button &btn) {
         return;
     
     m_labelbuttons.push_back(&btn);
-    renderTitlebar();
-
 }
 
 void FbWinFrame::removeLabelButton(FbTk::Button &btn) {
@@ -265,8 +258,6 @@ void FbWinFrame::removeLabelButton(FbTk::Button &btn) {
         return;
 
     m_labelbuttons.erase(erase_it);
-
-    redrawTitlebar();
 }
 
 void FbWinFrame::setClientWindow(FbTk::FbWindow &win) {
@@ -425,8 +416,9 @@ void FbWinFrame::buttonReleaseEvent(XButtonEvent &event) {
             break;
         }
     }
-    
-    if (event.button < 1 || event.button > 5)
+
+    if (event.button < 1 || event.button > 5 || 
+        event.window == m_clientarea.window())
         return;
 
     static int last_release_time = 0;
