@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-//$Id: Keys.cc,v 1.38.2.1 2003/10/28 21:34:52 rathnor Exp $
+//$Id: Keys.cc,v 1.38.2.2 2004/01/28 11:02:58 rathnor Exp $
 
 
 #include "Keys.hh"
@@ -31,9 +31,11 @@
 #include "FbTk/EventManager.hh"
 #include "FbTk/Action.hh"
 #include "FbTk/ActionNode.hh"
+#include "FbTk/ActionHandler.hh"
 
 #include "CommandParser.hh"
-
+#include "fluxbox.hh"
+#include "WinClient.hh"
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
@@ -77,7 +79,28 @@
 
 using namespace std;
 
-Keys::Keys(const char *filename)
+/**
+ * Returns the "level" of the given window.
+ */
+unsigned int getWindowLevel(Window win) {
+    Fluxbox *fluxbox = Fluxbox::instance();
+    WinClient *winclient = 0;
+
+    if (fluxbox->searchScreen(win) != 0)
+        return Keys::GLOBAL;
+    else if (fluxbox->searchTabs(win, true) != 0) // tabs first so recursive doesnt kill
+        return Keys::TAB;
+    else if ((winclient = fluxbox->searchClientWindow(win, true)) != 0)
+            return Keys::TOPLEVEL;
+    else if ((winclient = fluxbox->searchWindow(win, true)) != 0)
+            return Keys::TOPNOTCLIENT;
+    else
+        return Keys::INVALID; // unknown = leave for other non-action infrastructure
+}
+
+
+Keys::Keys(const char *filename) :
+    m_actionhandler(&getWindowLevel)
 {
 
     if (filename != 0)
@@ -149,7 +172,7 @@ bool Keys::reconfigure(const char *filename, bool clear_old) {
                 cerr<<"> "<<linebuffer<<endl;
                 delete node;
             } else {
-                node->setAction(action); 
+                node->addAction(action, true);
                 m_actionhandler.registerAction(*node);
 
                 // don't let this node delete the action, since it has been 
@@ -167,3 +190,4 @@ bool Keys::reconfigure(const char *filename, bool clear_old) {
     
     return true;
 }
+

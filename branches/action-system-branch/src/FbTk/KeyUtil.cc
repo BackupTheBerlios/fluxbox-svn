@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: KeyUtil.cc,v 1.4.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: KeyUtil.cc,v 1.4.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 #include "KeyUtil.hh"
 #include "ScreensApp.hh"
@@ -92,6 +92,7 @@ void KeyUtil::grabKey(unsigned int key, unsigned int mod) {
     const unsigned int capsmod = LockMask;
     const unsigned int nummod = Mod2Mask;
     const unsigned int scrollmod = Mod5Mask;
+    mod &= ~DoubleClickMask; // don't want our mask to appear in reality
     
     for (int screen=0; screen<sapp->numScreens(); screen++) {
         // only grab on screens that we're active on
@@ -113,7 +114,7 @@ void KeyUtil::grabKey(unsigned int key, unsigned int mod) {
  Grabs a button with the modifier
  and with numlock,capslock and scrollock
 */
-void KeyUtil::grabButton(unsigned int button, unsigned int mod) {
+void KeyUtil::grabButton(unsigned int button, unsigned int mod, Window win, int screen_num) {
 
     ScreensApp *sapp = ScreensApp::instance();
     Display *display = sapp->display();
@@ -123,21 +124,35 @@ void KeyUtil::grabButton(unsigned int button, unsigned int mod) {
     const unsigned int scrollmod = Mod5Mask;
     unsigned int event_mask = ButtonPressMask|ButtonReleaseMask|PointerMotionMask;
 
-    for (int screen=0; screen<sapp->numScreens(); screen++) {
-        // only grab on screens that we're active on
-        if (!sapp->isScreenUsed(screen))
-            continue;
-		
-        Window root = RootWindow(display, screen);
-	cerr<<"grabButton("<<screen<<", button="<<button<<", mod="<<mod<<")"<<endl;
+    mod &= ~DoubleClickMask; // don't want our mask to appear in reality
 
+    if (win == None && screen_num < 0)
+        win = RootWindow(display, screen_num);
+
+    if (win == None) {
+        for (int screen=0; screen<sapp->numScreens(); screen++) {
+            // only grab on screens that we're active on
+            if (!sapp->isScreenUsed(screen))
+                continue;
+
+            Window root = RootWindow(display, screen);
+            cerr<<"grabButton("<<screen<<", button="<<button<<", mod="<<mod<<")"<<endl;
+
+            for (int m = 0; m == 0 || ignored_modmasks[m] == None; ++m)
+                XGrabButton(display, button, mod|ignored_modmasks[m],
+                            root, True, event_mask,
+                            GrabModeAsync, GrabModeAsync,
+                            root, None);
+        }
+    } else {
+        Window root = RootWindow(display, screen_num);
+        cerr<<"grabButton(win = "<<hex<<win<<dec<<", screen = "<<screen_num<<", button="<<button<<", mod="<<mod<<")"<<endl;
         for (int m = 0; m == 0 || ignored_modmasks[m] == None; ++m)
             XGrabButton(display, button, mod|ignored_modmasks[m],
-                        root, event_mask, True,
-                        GrabModeAsync, GrabModeAsync,
+                        win, True, event_mask,
+                        GrabModeSync, GrabModeSync,
                         root, None);
-						
-    }
+    }			
 
 }
 
@@ -187,6 +202,7 @@ unsigned int KeyUtil::getModifier(const char *modstr) {
         {"MOD3", Mod3Mask},
         {"MOD4", Mod4Mask},
         {"MOD5", Mod5Mask},
+        {"DOUBLE", DoubleClickMask}, /* our own special pseudo-modifier */
         {0, 0}
     };
 
@@ -213,6 +229,16 @@ void KeyUtil::ungrabKeys() {
     Display * display = sapp->display();
     for (int screen=0; screen<sapp->numScreens(); screen++) {
         XUngrabKey(display, AnyKey, AnyModifier,
+                   RootWindow(display, screen));		
+    }
+}
+
+/// Ungrabs the keys
+void KeyUtil::ungrabButtons() {
+    ScreensApp *sapp = ScreensApp::instance();
+    Display * display = sapp->display();
+    for (int screen=0; screen<sapp->numScreens(); screen++) {
+        XUngrabButton(display, AnyButton, AnyModifier,
                    RootWindow(display, screen));		
     }
 }
@@ -284,8 +310,13 @@ string KeyUtil::modifierToString(unsigned int modmask) {
                 result += " ";
             if (i < specmods)
                 result += mods[i];
-            else {
+            else if (i == DoubleClickMod) {
+                result += "Double";
+            } else if (i <= Mod5MapIndex) {
                 sprintf(tmp, "Mod%d", (i-specmods+1));
+                result += tmp;
+            } else {
+                sprintf(tmp, "Button%dMask", (i-Mod5MapIndex+1));
                 result += tmp;
             }
             first = false;

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.239.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Screen.cc,v 1.239.2.2 2004/01/28 11:02:58 rathnor Exp $
 
 
 #include "Screen.hh"
@@ -312,7 +312,7 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
     managed = running;
     if (! managed)
         return;
-	
+
     initXinerama();
 
     I18n *i18n = I18n::instance();
@@ -433,7 +433,49 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
     // start with workspace 0
     changeWorkspaceID(0);
     updateNetizenWorkspaceCount();
+}
+
+BScreen::~BScreen() {
+    if (! managed)
+        return;
+
+    if (geom_pixmap != None)
+        imageControl().removeImage(geom_pixmap);
+
+    removeWorkspaceNames();
+
+    Workspaces::iterator w_it = m_workspaces_list.begin();
+    Workspaces::iterator w_it_end = m_workspaces_list.end();
+    for(; w_it != w_it_end; ++w_it) {
+        delete (*w_it);
+    }
+    m_workspaces_list.clear();
 	
+    Icons::iterator i_it = m_icon_list.begin();
+    Icons::iterator i_it_end = m_icon_list.end();
+    for(; i_it != i_it_end; ++i_it) {
+        delete (*i_it);
+    }
+    m_icon_list.clear();
+	
+    Netizens::iterator n_it = m_netizen_list.begin();
+    Netizens::iterator n_it_end = m_netizen_list.end();
+    for(; n_it != n_it_end; ++n_it) {
+        delete (*n_it);
+    }
+
+    m_netizen_list.clear();
+
+    if (hasXinerama() && m_xinerama_headinfo) {
+        delete [] m_xinerama_headinfo;
+    }
+}
+
+
+void BScreen::initWindows() {
+    Display *disp = FbTk::App::instance()->display();
+    Fluxbox *fluxbox = Fluxbox::instance();
+
     int i;
     unsigned int nchild;
     Window r, p, *children;
@@ -444,7 +486,7 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
 		
         if (children[i] == None) continue;
 
-        XWMHints *wmhints = XGetWMHints(FbTk::App::instance()->display(),
+        XWMHints *wmhints = XGetWMHints(disp,
                                         children[i]);
 
         if (wmhints) {
@@ -483,47 +525,11 @@ BScreen::BScreen(FbTk::ResourceManager &rm,
         }
     }
 
-    rm.unlock();
+    m_resource_manager.unlock();
 
     XFree(children);
 
     XFlush(disp);
-}
-
-BScreen::~BScreen() {
-    if (! managed)
-        return;
-
-    if (geom_pixmap != None)
-        imageControl().removeImage(geom_pixmap);
-
-    removeWorkspaceNames();
-
-    Workspaces::iterator w_it = m_workspaces_list.begin();
-    Workspaces::iterator w_it_end = m_workspaces_list.end();
-    for(; w_it != w_it_end; ++w_it) {
-        delete (*w_it);
-    }
-    m_workspaces_list.clear();
-	
-    Icons::iterator i_it = m_icon_list.begin();
-    Icons::iterator i_it_end = m_icon_list.end();
-    for(; i_it != i_it_end; ++i_it) {
-        delete (*i_it);
-    }
-    m_icon_list.clear();
-	
-    Netizens::iterator n_it = m_netizen_list.begin();
-    Netizens::iterator n_it_end = m_netizen_list.end();
-    for(; n_it != n_it_end; ++n_it) {
-        delete (*n_it);
-    }
-
-    m_netizen_list.clear();
-
-    if (hasXinerama() && m_xinerama_headinfo) {
-        delete [] m_xinerama_headinfo;
-    }
 }
 
 unsigned int BScreen::currentWorkspaceID() const { 

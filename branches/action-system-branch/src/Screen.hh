@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.hh,v 1.125.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Screen.hh,v 1.125.2.2 2004/01/28 11:03:03 rathnor Exp $
 
 #ifndef	 SCREEN_HH
 #define	 SCREEN_HH
@@ -77,6 +77,10 @@ public:
             const std::string &screenname, const std::string &altscreenname,
             int scrn, int number_of_layers);
     ~BScreen();
+
+    // window loading is separated from initial constructor, since we don't want
+    // to go through that if we aren't managing the screen
+    void initWindows();
 
     inline bool isSloppyFocus() const { return (*resource.focus_model == Fluxbox::SLOPPYFOCUS); }
     inline bool isSemiSloppyFocus() const { return (*resource.focus_model == Fluxbox::SEMISLOPPYFOCUS); }

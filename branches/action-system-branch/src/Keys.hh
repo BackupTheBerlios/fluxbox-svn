@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Keys.hh,v 1.29.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Keys.hh,v 1.29.2.2 2004/01/28 11:02:58 rathnor Exp $
 
 #ifndef KEYS_HH
 #define KEYS_HH
@@ -30,6 +30,8 @@
 
 #include "FbTk/ActionHandler.hh"
 #include "NotCopyable.hh"
+
+
 
 /**
  * This is a little wrapper class to combine together
@@ -55,6 +57,11 @@ public:
 
     inline FbTk::ActionHandler &handler() { return m_actionhandler; }
     inline const FbTk::ActionHandler &handler() const { return m_actionhandler; }
+
+    // for ActionHandler
+    // These are the window levels used by fluxbox (so far)
+    // they are a mask
+    enum { INVALID=0, GLOBAL=1, TOPLEVEL=2, TOPNOTCLIENT=4, TAB=8 } WindowLevel;
 
 private:
 

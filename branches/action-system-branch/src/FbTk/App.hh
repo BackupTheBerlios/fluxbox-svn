@@ -52,10 +52,21 @@ public:
     /// forces an end to event loop
     void end();
     bool done() const { return m_done; }
+
+    // Most apps require some concept of double clicking
+    // This is the delay (in ms) to make 2 clicks a double
+    inline Time doubleClickDelay() { return m_doubleclick_delay; }
+    inline void setDoubleClickDelay(Time delay) { m_doubleclick_delay = delay; }
+
+    // grab/ungrab this display
+    void grab();
+    void ungrab();
 private:
     static App *s_app;
     bool m_done;
     Display *m_display;
+    int m_server_grabs;
+    Time m_doubleclick_delay;
 };
 
 }; // end namespace FbTk

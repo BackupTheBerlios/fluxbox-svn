@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WorkspaceCmd.hh,v 1.2.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: WorkspaceCmd.hh,v 1.2.2.2 2004/01/28 11:03:16 rathnor Exp $
 
 #ifndef WORKSPACECMD_HH
 #define WORKSPACECMD_HH
@@ -44,9 +44,9 @@ public:
         FbTk::Action(true, true, true, true) {} 
     ~CycleWindowAction();
 
-    void start(FbTk::ActionContext &context);
-    void motion(FbTk::ActionContext &context);
-    void stop(FbTk::ActionContext &context);
+    bool start(FbTk::ActionContext &context);
+    bool motion(FbTk::ActionContext &context);
+    bool stop(FbTk::ActionContext &context);
 
     // associate this binding with a particular type of action
     void addBinding(FbTk::ActionBinding *binding, bool forward, int options);

@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ActionContext.cc,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: ActionContext.cc,v 1.1.2.2 2004/01/28 11:03:34 rathnor Exp $
 
 #include "ActionContext.hh"
 #include "StringUtil.hh"
@@ -104,65 +104,81 @@ bool ActionBinding::setFromString(const string &str) {
         return false;
     }
 
+    // Keep chaining in mind.
+    // While we see modifiers, add them. If it isn't a modifier
+    // check for key/button (one only), then look for more in the
+    // chain.
     unsigned int tmp = 0;
+
+    ActionBinding *currbind = this;
 
     // everything up to the last one is expected to be a modifier
     // the last one is expected to be a key
 
+
+    bool complete = false;
     // parse all modifiers
     int i=0;
-    for (; i < val.size()-1; ++i) {
-        // Always force first one to be a modifier
-        if (i == 0) {
+    // repeat looking for complete sets
+    for (; i < val.size(); ++i) {
+        if (complete) {
+            currbind->m_child = new ActionBinding();
+            currbind = currbind->m_child;
+        }
+
+        complete = false;
+        for (; i < val.size(); ++i) {
             // first check if the modifier is "None"
             // since that is a special non-error case
             if (val[i] == "None") {
-                m_mods = 0;
+                currbind->m_mods = 0;
                 continue;
+            }
+
+            // normal key modifier?
+            tmp = KeyUtil::getModifier(val[i].c_str());
+            if (tmp != 0) {
+                currbind->m_mods |= tmp;
+                continue;
+            }
+
+            break; // not a modifier
+        }
+
+
+        // must be a key
+
+        // standard key?
+        const char * keystr = val[i].c_str();
+        tmp = KeyUtil::getKey(keystr);
+        if (tmp != 0) {
+            currbind->m_value = tmp;
+            currbind->m_iskeyvalue = true;
+            complete = true;
+        } else {
+            // mouse button?
+            tmp = KeyUtil::getButton(keystr);
+            if (tmp != 0) {
+                currbind->m_value = tmp;
+                currbind->m_iskeyvalue = false;
+                complete = true;
             }
         }
 
-        // normal key modifier?
-        tmp = KeyUtil::getModifier(val[i].c_str());
-        if (tmp != 0) {
-            m_mods |= tmp;
-            continue;
-        }
+        if (!complete)
+            break;
+    }
 
-        // special mouse modifier?
-
-        // bad modifier
+    if (i != val.size()) {
+        // bad value then
 #ifdef DEBUG
-        cerr<<"bad modifier"<<endl;
+        cerr<<"bad key/button"<<endl;
 #endif // DEBUG
+
         return false;
     }
 
-
-    // must be a key
-
-    // standard key?
-    const char * keystr = val[i].c_str();
-    tmp = KeyUtil::getKey(keystr);
-    if (tmp != 0) {
-        m_value = tmp;
-        m_iskeyvalue = true;
-        return true;
-    }
-
-    // mouse button?
-    tmp = KeyUtil::getButton(keystr);
-    if (tmp != 0) {
-        m_value = tmp;
-        m_iskeyvalue = false;
-        return true;
-    }
-
-    // bad value then
-#ifdef DEBUG
-    cerr<<"bad key/button"<<endl;
-#endif // DEBUG
-    return false;
+    return true;
 }
 
 string ActionBinding::toString() const {

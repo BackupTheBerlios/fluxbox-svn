@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WorkspaceCmd.cc,v 1.6.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: WorkspaceCmd.cc,v 1.6.2.2 2004/01/28 11:03:16 rathnor Exp $
 
 #include "WorkspaceCmd.hh"
 
@@ -76,24 +76,23 @@ CycleWindowAction::CycleOptions *CycleWindowAction::getOptions(FbTk::ActionBindi
 }
 
 
-void CycleWindowAction::start(FbTk::ActionContext &context) {
+bool CycleWindowAction::start(FbTk::ActionContext &context) {
     // we don't have to do anything special on start, since
     // nextFocus starts if it hasn't already
 
     // the start implies a motion
-    motion(context);
-
+    return motion(context);
 }
 
-void CycleWindowAction::motion(FbTk::ActionContext &context) {
+bool CycleWindowAction::motion(FbTk::ActionContext &context) {
     CycleOptions *opts = getOptions(context.binding);
 
     if (!opts)
-        return;
+        return false;
 
     BScreen *screen = Fluxbox::instance()->keyScreen();
     if (screen == 0) 
-        return;
+        return false;
 
     // if we have no mods thatcan be grabbed, then we must go linear
     int force_opts = 0;
@@ -104,13 +103,17 @@ void CycleWindowAction::motion(FbTk::ActionContext &context) {
         screen->nextFocus(opts->options | force_opts);
     else
         screen->prevFocus(opts->options | force_opts);
+
+    return true;
 }
 
-void CycleWindowAction::stop(FbTk::ActionContext &context) {
+bool CycleWindowAction::stop(FbTk::ActionContext &context) {
     BScreen *screen = Fluxbox::instance()->keyScreen();
-    if (screen != 0)
+    if (screen != 0) {
         screen->stopFocusCycling();
-    
+        return true;
+    } else
+        return false;
 }
 
 void SimpleNextWindowCmd::execute() {

@@ -20,21 +20,29 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ActionNode.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: ActionNode.hh,v 1.1.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 #ifndef FBTK_ACTIONNODE_HH
 #define FBTK_ACTIONNODE_HH
 
 #include "ActionContext.hh"
 
-#include <map>
-#include <utility>
+#include <set>
+#include <list>
 #include <string>
-#include <X11/Xlib.h>
 
 namespace FbTk {
 
 class Action;
+class ActionNode;
+
+struct ltActionNode
+{
+    bool operator()(const ActionNode* s1, const ActionNode* s2) const;
+
+};
+
+
 
 /**
  * An ActionNode is the representation for the sequence of events needed
@@ -42,6 +50,9 @@ class Action;
  */
 class ActionNode : public ActionBinding {
 public:
+    typedef std::list<Action *> ActionList;
+    typedef std::set<ActionNode *, ltActionNode> NodeChildren;
+
     ActionNode(bool is_default = false);
 
     // This constructor is used to parse the description string in desc
@@ -62,20 +73,35 @@ public:
         return ActionBinding::operator<(node);
     }
 
-    inline ActionNode *sibling() { return m_sibling; }
-    inline const ActionNode *sibling() const { return m_sibling; }
+    // use deepest_child when you've just parsed a keybinding that
+    // may have represented a chain (thus the action should be 
+    // at the end of the chain)
+    void addAction(Action *action, bool deepest_child = false);
 
-    void setAction(Action *action);
+    // provided child may be deleted - it now belongs to this node
+    // BEWARE that the child() function from ActionBinding makes
+    // no sense for [external] use with ActionNodes
+    void addChild(ActionNode *child);
 
-    inline Action* action() { return m_action; }
+    // merge given action node into this one
+    // deletes provided node
+    void merge(ActionNode *node);
+
+    inline ActionList &actionList() { return m_actions; }
+    inline bool hasChildren() { return m_children != 0 && !m_children->empty(); }
+
+    // should always check hasChildren() first
+    inline NodeChildren children() { return *m_children; }
 
 private:
-    ActionNode *m_sibling;  // Next with same preceding actions in the chain
+    void mergeBindingChildren(ActionBinding &binding);
+
     bool m_default;       // is this a "default" binding (i.e. overrideable)
 
-    Action *m_action;
+    ActionList m_actions;
+    // chaining
+    NodeChildren *m_children; // pointer since not many will have it...
 };
-
 
 
 }; // end namespace FbTk

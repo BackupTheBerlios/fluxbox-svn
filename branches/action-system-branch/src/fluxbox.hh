@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.hh,v 1.74.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: fluxbox.hh,v 1.74.2.2 2004/01/28 11:03:28 rathnor Exp $
 
 #ifndef	 FLUXBOX_HH
 #define	 FLUXBOX_HH
@@ -86,14 +86,17 @@ public:
     /// main event loop
     void eventLoop();
     bool validateWindow(Window win) const;
-    void grab();
-    void ungrab();
 
     inline Atom getFluxboxPidAtom() const { return m_fluxbox_pid; }
 
     // Not currently implemented until we decide how it'll be used
     //WinClient *searchGroup(Window);
-    WinClient *searchWindow(Window);
+    // top level window
+    WinClient *searchClientWindow(Window win, bool climb_tree = false);
+    WinClient *searchWindow(Window, bool climb_tree = false);
+
+    // window tab (probably in titlebar)
+    WinClient *searchTabs(Window, bool climb_tree = false);
     inline WinClient *getFocusedWindow() { return m_focused_window; }
 
 		
@@ -167,12 +170,14 @@ public:
     void saveTitlebarFilename(const char *);
     void saveSlitlistFilename(const char *val) { m_rc_slitlistfile = (val == 0 ? "" : val); }
     void saveWindowSearch(Window win, WinClient *winclient);
+    void saveWindowTabSearch(Window win, WinClient *winclient);
     // some windows relate to the group, not the client, so we record separately
     // searchWindow on these windows will give the active client in the group
     void saveWindowSearchGroup(Window win, FluxboxWindow *fbwin);
     void saveGroupSearch(Window win, WinClient *winclient);
     void save_rc();
     void removeWindowSearch(Window win);
+    void removeWindowTabSearch(Window win);
     void removeWindowSearchGroup(Window win);
     void removeGroupSearch(Window win);
     void restart(const char *command = 0);
@@ -266,6 +271,7 @@ private:
 
 	
     std::map<Window, WinClient *> m_window_search;
+    std::map<Window, WinClient *> m_window_tab_search;
     std::map<Window, FluxboxWindow *> m_window_search_group;
     // A window is the group leader, which can map to several
     // WinClients in the group, it is *not* fluxbox's concept of groups
@@ -312,7 +318,6 @@ private:
     std::vector<AtomHandler *> m_atomhandler;
     bool m_starting;
     bool m_shutdown;
-    int m_server_grabs;
     int m_randr_event_type; ///< the type number of randr event
     int m_shape_eventbase; ///< event base for shape events
     bool m_have_shape; ///< if shape is supported by server

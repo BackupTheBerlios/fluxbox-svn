@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: KeyUtil.hh,v 1.3.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: KeyUtil.hh,v 1.3.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 #ifndef FBTK_KEYUTIL_HH
 #define FBTK_KEYUTIL_HH
@@ -29,6 +29,10 @@
 #include <X11/keysym.h>
 
 #include <memory>
+
+// We have a special pseudo-modifier of our own
+#define DoubleClickMod 14
+#define DoubleClickMask (1<<DoubleClickMod)
 
 namespace FbTk {
 
@@ -48,8 +52,9 @@ public:
 
     /**
        Grab the specified button
+       A window of none grabs on all screens
     */
-    static void grabButton(unsigned int button, unsigned int mod);
+    static void grabButton(unsigned int button, unsigned int mod, Window win = None, int screen_num = -1);
 
     /**
        convert the string to the keysym
@@ -76,6 +81,7 @@ public:
        ungrabs all keys
      */
     static void ungrabKeys();
+    static void ungrabButtons();
 
     /** 
         Strip out modifiers we want to ignore

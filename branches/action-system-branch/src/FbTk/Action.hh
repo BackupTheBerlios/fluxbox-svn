@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Action.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Action.hh,v 1.1.2.2 2004/01/28 11:03:34 rathnor Exp $
 
 
 #ifndef FBTK_ACTION_HH
@@ -40,7 +40,7 @@ class ActionContext;
 
 class Action {
 public:
-    Action(bool start, bool stop, bool motion, bool isglobal = false);
+    Action(bool start, bool stop, bool motion, bool isglobal = false, bool ispassthrough = false);
     virtual ~Action() {}
 
     // Called on a "Press" event
@@ -48,13 +48,15 @@ public:
     // from window, the co-ordinates in the window
     // and the coordinates in the root window.
     // the coordinates are undefined for "focused window" events
-    virtual void start(ActionContext &context) {}
+    // returns a bool to indicate success
+    // an unsuccessful start will not grab/motion
+    virtual bool start(ActionContext &context) { return true; }
 
     // Called on a "Release" event
-    virtual void stop(ActionContext &context) {}
+    virtual bool stop(ActionContext &context) { return true; }
 
     // Called on a "motion" event
-    virtual void motion(ActionContext &context) {}
+    virtual bool motion(ActionContext &context) { return true; }
 
     // we store explicitly which actions this has so we don't
     // construct and call the functions unless absolutely necessary
@@ -71,12 +73,35 @@ public:
     inline bool isGlobal() const { return global; }
     inline void setGlobal(bool isglobal) { global = isglobal; }
 
+    // Actions can be marked ass passthrough. That means that the
+    // user action(s) that trigger it are replayed to the client
+    inline bool isPassthrough() const { return passthrough; }
+    inline void setPassthrough(bool ispassthrough) { passthrough = ispassthrough; }
+
     // mouse motion actions can have a specific cursor
     // defaults to none == window's normal cursor
     virtual Cursor cursor();
 
+    /* "Level" that this action performs at.
+     * An application can define it's levels however it desires
+     * It will be asked for the level of a given window, and 
+     * the action of that level (if it exists) will be called.
+     *
+     * Note that keyboard actions come from grabs on the root window
+     * and will thus be the same level as is returned for that.
+     * default to 0 just to save forcing this to be implemented
+     * thus I recommend that "root" windows return level 0, ditto "global" actions.
+     *
+     * Also note that negative levels are considered invalid (thus
+     * the return value for "this window has no known level").
+     * See the getLevel function in ActionHandler.
+     *
+     * There is no need for levels to be consecutive/densely populated.
+     */
+    virtual int getLevel() { return 0; }
+
 private:
-    bool has_start, has_motion, has_stop, global;
+    bool has_start, has_motion, has_stop, global, passthrough;
 
 };
 

@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.hh,v 1.24 2003/10/28 02:17:02 rathnor Exp $
+// $Id: FbWinFrame.hh,v 1.24.2.1 2004/01/28 11:02:58 rathnor Exp $
 
 #ifndef FBWINFRAME_HH
 #define FBWINFRAME_HH
@@ -182,7 +182,18 @@ public:
     /// @return size of button
     unsigned int buttonHeight() const;
 
+    void renderTitlebar();
+
     //@}
+
+#ifdef DEBUG
+    // Functions to help with debugging things
+
+    // Print out interesting window IDs
+    // If deep is true, then it prints out all of them (tabs, buttons, etc etc)
+    void printWindows(bool deep = false) const;
+
+#endif // DEBUG
 
 private:
     void redrawTitlebar();
@@ -194,7 +205,6 @@ private:
        @name render helper functions
     */
     //@{
-    void renderTitlebar();
     void renderHandles();
     void renderButtons();
     void renderButtonFocus(FbTk::TextButton &button);

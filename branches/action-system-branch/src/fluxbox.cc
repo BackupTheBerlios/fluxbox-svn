@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.201.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: fluxbox.cc,v 1.201.2.2 2004/01/28 11:03:16 rathnor Exp $
 
 #include "fluxbox.hh"
 
@@ -41,9 +41,14 @@
 #include "Keys.hh"
 #include "FbAtoms.hh"
 #include "defaults.hh"
+#include "CurrentWindowCmd.hh"
 
 #include "FbTk/Image.hh"
 #include "FbTk/KeyUtil.hh"
+#include "FbTk/WindowTools.hh"
+#include "FbTk/CommandAction.hh"
+#include "FbTk/ActionHandler.hh"
+#include "FbTk/ActionNode.hh"
 
 //Use GNU extensions
 #ifndef	 _GNU_SOURCE
@@ -57,15 +62,19 @@
 #ifdef SLIT
 #include "Slit.hh"
 #endif // SLIT
+
 #ifdef USE_GNOME
 #include "Gnome.hh"
 #endif // USE_GNOME
+
 #ifdef USE_NEWWMSPEC
 #include "Ewmh.hh"
 #endif // USE_NEWWMSPEC
+
 #ifdef REMEMBER
 #include "Remember.hh"
 #endif // REMEMBER
+
 #ifdef USE_TOOLBAR
 #include "Toolbar.hh"
 #include "ToolbarHandler.hh"
@@ -82,6 +91,7 @@
 #ifdef SHAPE
 #include <X11/extensions/shape.h>
 #endif // SHAPE
+
 #ifdef HAVE_RANDR
 #include <X11/extensions/Xrandr.h>
 #endif // HAVE_RANDR
@@ -428,7 +438,6 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
       m_argv(argv), m_argc(argc),
       m_starting(true),
       m_shutdown(false),
-      m_server_grabs(0),
       m_randr_event_type(0),
       m_RC_PATH("fluxbox"),
       m_RC_INIT_FILE("init"),
@@ -484,19 +493,6 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
     load_rc();
     // setup theme manager to have our style file ready to be scanned
     FbTk::ThemeManager::instance().load(getStyleFilename());
-
-    // setup atom handlers before we create any windows
-#ifdef USE_GNOME
-    addAtomHandler(new Gnome()); // for gnome 1 atom support
-#endif //USE_GNOME
-
-#ifdef USE_NEWWMSPEC
-    addAtomHandler(new Ewmh()); // for Extended window manager atom support
-#endif // USE_NEWWMSPEC
-
-#ifdef REMEMBER
-    addAtomHandler(new Remember()); // for remembering window attribs
-#endif // REMEMBER
 
     grab();
 	
@@ -564,12 +560,43 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
         screen->workspaceCountSig().attach(this);
         screen->workspaceNamesSig().attach(this);
         screen->clientListSig().attach(this);
+    }
+
+    // load keys file (before any windows are created)
+    m_key.reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
+    FbTk::ActionNode *tempnode = new FbTk::ActionNode(Button1, false, 0, 0, true);
+    FbTk::Action *tempaction = new RaiseFocusAction(true, true, Keys::TOPLEVEL | Keys::TOPNOTCLIENT | Keys::TAB, true);
+    tempaction->setGlobal(true);
+    tempnode->addAction(tempaction);
+    m_key.handler().registerAction(*tempnode);
+    delete tempnode;
+    tempaction->setGlobal(false);
+    tempaction = 0;
+
+    // setup atom handlers before we create any windows
+#ifdef USE_GNOME
+    addAtomHandler(new Gnome()); // for gnome 1 atom support
+#endif //USE_GNOME
+
+#ifdef USE_NEWWMSPEC
+    addAtomHandler(new Ewmh()); // for Extended window manager atom support
+#endif // USE_NEWWMSPEC
+
+#ifdef REMEMBER
+    addAtomHandler(new Remember()); // for remembering window attribs
+#endif // REMEMBER
+
+
+    ScreenList::iterator it = m_screen_list.begin();
+    ScreenList::iterator it_end = m_screen_list.end();
+    for (;it != it_end; ++it) {
+        (*it)->initWindows();
 
         // initiate atomhandler for screen specific stuff
         for (size_t atomh=0; atomh<m_atomhandler.size(); ++atomh) {
-            m_atomhandler[atomh]->initForScreen(*screen);
+            m_atomhandler[atomh]->initForScreen(**it);
         }
-        revertFocus(*screen, false); // make sure focus style is correct
+        revertFocus(**it, false); // make sure focus style is correct
 
     }
     m_keyscreen = m_mousescreen = m_screen_list.front();
@@ -589,9 +616,6 @@ Fluxbox::Fluxbox(int argc, char **argv, const char *dpy_name, const char *rcfile
     FbTk::RefCount<FbTk::Command> reconf_cmd(new FbTk::SimpleCommand<Fluxbox>(*this, &Fluxbox::timed_reconfigure));
     m_timer.setCommand(reconf_cmd);
     m_timer.fireOnce(true);
-
-    // load keys file	
-    m_key.reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
 
     m_resourcemanager.unlock();
     ungrab();
@@ -649,18 +673,6 @@ bool Fluxbox::validateWindow(Window window) const {
     }
 
     return true;
-}
-
-void Fluxbox::grab() {
-    if (! m_server_grabs++)
-       XGrabServer(display());
-}
-
-void Fluxbox::ungrab() {
-    if (! --m_server_grabs)
-        XUngrabServer(display());
-    if (m_server_grabs < 0)
-        m_server_grabs = 0;
 }
 
 /**
@@ -866,6 +878,7 @@ void Fluxbox::handleEvent(XEvent * const e) {
     }
         break;
     case MotionNotify: 
+        cerr<<"handleEvent(MotionNotify)"<<endl;
         break;
     case PropertyNotify: {
         m_last_time = e->xproperty.time;
@@ -961,6 +974,8 @@ void Fluxbox::handleButtonEvent(XButtonEvent &be) {
 
     switch (be.type) {
     case ButtonPress: {
+        cerr<<"handleEvent(ButtonPress, "<<be.button<<", "<<hex<<be.window<<dec<<")"<<endl;
+
         m_last_time = be.time;
 
         BScreen *screen = searchScreen(be.window);
@@ -1047,6 +1062,8 @@ void Fluxbox::handleButtonEvent(XButtonEvent &be) {
         
     } break;
     case ButtonRelease:
+        cerr<<"handleEvent(ButtonRelease, "<<be.button<<", "<<hex<<be.window<<dec<<")"<<endl;
+
         break;	
     default:
         break;
@@ -1167,6 +1184,11 @@ void Fluxbox::handleClientMessage(XClientMessageEvent &ce) {
  Handles KeyRelease and KeyPress events
 */
 void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
+
+    cerr<<"handleEvent("<<
+        ((ke.type == KeyPress)?"KeyPress":"KeyRelease")
+        <<", "<<ke.keycode<<", "<<hex<<ke.window<<dec<<")"<<endl;
+
     m_keyscreen = searchScreen(ke.window);
 
     m_mousescreen = keyScreen();
@@ -1396,15 +1418,47 @@ void Fluxbox::removeAtomHandler(AtomHandler *atomh) {
     }
 }
 
-WinClient *Fluxbox::searchWindow(Window window) {
+WinClient *Fluxbox::searchClientWindow(Window window, bool climb_tree) {
+    std::map<Window, WinClient *>::iterator it = m_window_search.find(window);
+    if (it != m_window_search.end())
+        return it->second;
+
+    if (climb_tree) {
+        Window parent = FbTk::WindowTools::parent(window);
+        if (parent != None)
+            return searchClientWindow(parent, climb_tree);
+    }
+    return 0;
+}
+
+WinClient *Fluxbox::searchWindow(Window window, bool climb_tree) {
     std::map<Window, WinClient *>::iterator it = m_window_search.find(window);
     if (it != m_window_search.end())
         return it->second;
 
     std::map<Window, FluxboxWindow *>::iterator git = m_window_search_group.find(window);
-    return git == m_window_search_group.end() ? 0 : &git->second->winClient();
+    if (git != m_window_search_group.end())
+        return &git->second->winClient();
+
+    if (climb_tree) {
+        Window parent = FbTk::WindowTools::parent(window);
+        if (parent != None)
+            return searchWindow(parent, climb_tree);
+    }
+    return 0;
 }
 
+WinClient *Fluxbox::searchTabs(Window window, bool climb_tree) {
+    std::map<Window, WinClient *>::iterator it = m_window_tab_search.find(window);
+    if (it != m_window_tab_search.end())
+        return it->second;
+    else if (climb_tree) {
+        Window parent = FbTk::WindowTools::parent(window);
+        if (parent != None)
+            return searchTabs(parent, climb_tree);
+    }        
+    return 0;
+}
 
 /* Not implemented until we know how it'll be used
  * Recall that this refers to ICCCM groups, not fluxbox tabgroups
@@ -1416,11 +1470,35 @@ WinClient *Fluxbox::searchGroup(Window window) {
 */
 
 void Fluxbox::saveWindowSearch(Window window, WinClient *data) {
+    if (data != 0)
+        m_key.handler().registerWindow(
+            Keys::TOPLEVEL,
+            window,
+            data->screenNumber());
+
     m_window_search[window] = data;
+}
+
+void Fluxbox::saveWindowTabSearch(Window window, WinClient *data) {
+/*    if (data != 0)
+        m_key.handler().registerWindow(
+            Keys::TOPLEVEL,
+            window,
+            data->screenNumber());
+*/
+    m_window_tab_search[window] = data;
 }
 
 /* some windows relate to the whole group */
 void Fluxbox::saveWindowSearchGroup(Window window, FluxboxWindow *data) {
+/*    if (data != 0) {
+        data->printWindows();
+        m_key.handler().registerWindow(
+            Keys::TOPLEVEL,
+            window,
+            data->screen().screenNumber());
+    }
+*/
     m_window_search_group[window] = data;
 }
 
@@ -1431,6 +1509,10 @@ void Fluxbox::saveGroupSearch(Window window, WinClient *data) {
 
 void Fluxbox::removeWindowSearch(Window window) {
     m_window_search.erase(window);
+}
+
+void Fluxbox::removeWindowTabSearch(Window window) {
+    m_window_tab_search.erase(window);
 }
 
 void Fluxbox::removeWindowSearchGroup(Window window) {
@@ -1818,6 +1900,14 @@ void Fluxbox::real_reconfigure() {
     //reconfigure keys
     m_key.reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
 
+    FbTk::ActionNode *tempnode = new FbTk::ActionNode(Button1, false, 0, 0, true);
+    FbTk::Action *tempaction = new RaiseFocusAction(true, true, Keys::TOPLEVEL | Keys::TOPNOTCLIENT | Keys::TAB, true);
+    tempaction->setGlobal(true);
+    tempnode->addAction(tempaction);
+    m_key.handler().registerAction(*tempnode);
+    delete tempnode;
+    tempaction->setGlobal(false);
+    tempaction = 0;
 
 }
 

@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: CurrentWindowCmd.hh,v 1.6.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: CurrentWindowCmd.hh,v 1.6.2.2 2004/01/28 11:02:56 rathnor Exp $
 
 #ifndef CURRENTWINDOWCMD_HH
 #define CURRENTWINDOWCMD_HH
@@ -84,6 +84,20 @@ private:
     const int m_workspace_num;
 };
 
+class RaiseFocusAction : public FbTk::Action {
+public:
+    RaiseFocusAction(bool doraise, bool dofocus, int actlevel, bool passthrough = true);
+
+    bool start(FbTk::ActionContext &context);
+
+    int getLevel();
+
+private:
+    bool raise, focus;
+    int level;
+
+};
+
 class FbWindowTransform : public FbTk::WindowTransform {
 public:
     FbWindowTransform();
@@ -107,29 +121,33 @@ private:
 // user drags the window to move it
 class MoveAction : public FbTk::Action, public FbWindowTransform {
 public:
-    MoveAction();
+    MoveAction(bool is_toplevel = true);
     ~MoveAction();
 
-    virtual void start(FbTk::ActionContext &context);
-    virtual void motion(FbTk::ActionContext &context);
-    virtual void stop(FbTk::ActionContext &context);
+    bool start(FbTk::ActionContext &context);
+    bool motion(FbTk::ActionContext &context);
+    bool stop(FbTk::ActionContext &context);
 
     Cursor cursor();
 
+    int getLevel();
+
 protected:
 
+    bool toplevel;
     int m_grab_x, m_grab_y;
 };
+
 
 // user drags the window to resize it
 class ResizeAction : public MoveAction {
 public:
-    ResizeAction();
+    ResizeAction(bool is_toplevel = true);
     ~ResizeAction();
 
-    void start(FbTk::ActionContext &context);
-    void motion(FbTk::ActionContext &context);
-    void stop(FbTk::ActionContext &context);
+    bool start(FbTk::ActionContext &context);
+    bool motion(FbTk::ActionContext &context);
+    bool stop(FbTk::ActionContext &context);
 
     enum ResizeCorner {
       LEFTTOP,
@@ -145,6 +163,37 @@ private:
     ResizeCorner m_corner;
 
 };
+
+
+// user drags a tab to relocate it
+// if dropped on a tab, inserted before that tab
+// if dropped somewhere else in a window, inserted at end of tabs
+// if dropped on no window, own frame is created
+class MoveTabAction : public FbTk::Action, public FbTk::WindowTransform {
+public:
+    MoveTabAction();
+    ~MoveTabAction();
+
+    bool start(FbTk::ActionContext &context);
+    bool motion(FbTk::ActionContext &context);
+    bool stop(FbTk::ActionContext &context);
+
+    Cursor cursor();
+
+    int getLevel();
+
+    void moveWindow(int x, int y);
+    void moveResizeWindow(int x, int y, unsigned int width, unsigned int height);
+
+protected:
+
+    int m_grab_x, m_grab_y, orig_x, orig_y;
+
+    WinClient *m_client;
+
+    const FbTk::FbWindow *orig_parent;
+};
+
 
 // move cmd, relative position
 class MoveCmd: public WindowHelperCmd {

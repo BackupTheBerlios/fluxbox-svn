@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.hh,v 1.15 2003/09/29 14:58:15 rathnor Exp $
+// $Id: WinClient.hh,v 1.15.2.1 2004/01/28 11:03:03 rathnor Exp $
 
 #ifndef WINCLIENT_HH
 #define WINCLIENT_HH
@@ -157,6 +157,8 @@ public:
     };
 
     inline int getFocusMode() const { return m_focus_mode; }
+    inline FluxboxWindow::BlackboxHints *getBlackboxHint() {
+        return m_blackbox_hint; }
     inline const FluxboxWindow::BlackboxHints *getBlackboxHint() const {
         return m_blackbox_hint; }
     void saveBlackboxAttribs(FluxboxWindow::BlackboxAttributes &blackbox_attribs);

@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WindowTools.cc,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: WindowTools.cc,v 1.1.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 
 #include "WindowTools.hh"
@@ -75,7 +75,7 @@ void WindowTransform::setDrawable(Drawable d, GC gc) {
 }
 
 void WindowTransform::move(int new_x, int new_y) {
-    if (use_outline && !paused)
+    if (active && use_outline && !paused)
         invertOutline(); // clear
 
     x = new_x;
@@ -95,7 +95,7 @@ void WindowTransform::move(int new_x, int new_y) {
 }
 
 void WindowTransform::resize(unsigned int new_width, unsigned int new_height) {
-    if (use_outline && !paused)
+    if (active && use_outline && !paused)
         invertOutline(); // clear
 
     width = new_width;
@@ -225,6 +225,9 @@ void WindowTransform::activate() {
     orig_size = true;
 
     if (use_outline)
+        FbTk::App::instance()->grab();
+
+    if (use_outline)
         invertOutline();
 }
 
@@ -232,8 +235,12 @@ void WindowTransform::commit() {
     if (!active)
         return;
 
-    if (use_outline && !paused)
-        invertOutline(); // clear
+    if (use_outline) {
+        if (!paused)
+            invertOutline(); // clear
+
+        FbTk::App::instance()->ungrab();
+    }
 
     moveResizeWindow(x, y, width, height);
 
@@ -247,6 +254,13 @@ void WindowTransform::commit() {
 void WindowTransform::cancel() {
     if (!active)
         return;
+
+    if (use_outline) {
+        if (!paused)
+            invertOutline(); // clear
+
+        FbTk::App::instance()->ungrab();
+    }
 
     if (orig_pos && orig_size) 
         moveResizeWindow(orig_x, orig_y,
@@ -271,6 +285,20 @@ void WindowTransform::invertOutline() {
                        width + 2*borderWidth - 1,
                        height + 2*borderWidth - 1);
     }
+}
+
+Window WindowTools::parent(Window win) {
+    // find out which window is the parent
+    Window root, parent_win, *children = 0;
+    unsigned int num_children;
+    if (XQueryTree(FbTk::App::instance()->display(), win, 
+                   &root, &parent_win, &children, &num_children) != 0) {
+        if (num_children != 0) 
+            XFree(children);
+
+        return parent_win;
+    }
+    return None;
 }
 
 

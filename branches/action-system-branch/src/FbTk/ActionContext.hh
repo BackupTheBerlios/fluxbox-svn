@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ActionContext.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: ActionContext.hh,v 1.1.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 #ifndef FBTK_ACTIONCONTEXT_HH
 #define FBTK_ACTIONCONTEXT_HH
@@ -77,6 +77,8 @@ public:
     inline unsigned int value() const { return m_value; }
     inline bool isKeyValue() const { return m_iskeyvalue; }
     inline unsigned int mods() const { return m_mods; }
+
+    inline void setMods(unsigned int mods) { m_mods = mods; }
 
     inline ActionBinding *child() { return m_child; }
     inline const ActionBinding *child() const { return m_child; }

@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.hh,v 1.100.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Window.hh,v 1.100.2.2 2004/01/28 11:03:14 rathnor Exp $
 
 #ifndef	 WINDOW_HH
 #define	 WINDOW_HH
@@ -155,7 +155,7 @@ public:
     /// attach client to our client list and remove it from old window
     void attachClient(WinClient &client);
     /// detach client (remove it from list) and create a new window for it 
-    bool detachClient(WinClient &client);
+    bool detachClient(WinClient &client, int x = 0, int y = 0, bool use_coords = false);
     /// detach current working client if we have more than one
     void detachCurrentClient();
     /// remove client from client list
@@ -167,6 +167,7 @@ public:
     void prevClient();
     void moveClientLeft();
     void moveClientRight();
+    WinClient *getTabAt(int x, int y);
 
     bool setInputFocus(long ignore_event = 0);
     void raiseAndFocus() { raise(); setInputFocus(); }
@@ -324,9 +325,17 @@ public:
     void pauseMoving();
     void resumeMoving();
 
+    FbTk::FbWindow *getLabelWindow(WinClient *client);
+
     unsigned int width() const;
     unsigned int height() const;
     unsigned int titlebarHeight() const;
+
+    // are these coordinates on the border of the window, rather 
+    // than the main part?
+    // the coordinates are in root space, not window space
+    // (so subwindows don't have issues)
+    bool onBorder(int x_root, int y_root);
 
     bool isLowerTab() const;
     int initialState() const;
@@ -365,6 +374,16 @@ public:
     };
 
     bool oplock; ///< Used to help stop transient loops occurring by locking a window during certain operations
+
+#ifdef DEBUG
+    // Functions to help with debugging things
+
+    // Print out interesting window IDs
+    // If deep is true, then it prints out all of them (tabs, buttons, etc etc)
+    void printWindows(bool deep = false) const;
+
+#endif // DEBUG
+
 private:
     static const int PropBlackboxAttributesElements = 8;
 

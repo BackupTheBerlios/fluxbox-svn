@@ -33,13 +33,17 @@ namespace FbTk {
 class CommandAction : public Action, public Command {
 public:
 
-    CommandAction(Command *cmd, bool delete_after = true);
+    CommandAction(Command *cmd, int level = 0, bool delete_after = true, bool global = false, bool passthrough = false);
     ~CommandAction();
     void execute();
-    void start(ActionContext &context);
+    bool start(ActionContext &context);
 
+    int getLevel() { return m_level; }
+
+private:
     Command *m_command;
     bool m_delete_after;
+    int m_level;
 };
 
 }; // end namespace FbTk

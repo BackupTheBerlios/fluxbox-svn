@@ -20,18 +20,19 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Action.cc,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Action.cc,v 1.1.2.2 2004/01/28 11:03:34 rathnor Exp $
 
 #include "Action.hh"
 #include "ActionContext.hh"
 
 namespace FbTk {
 
-Action::Action(bool start, bool stop, bool motion, bool isglobal) :
+Action::Action(bool start, bool stop, bool motion, bool isglobal, bool ispassthrough) :
     has_start(start),
     has_stop(stop),
     has_motion(motion),
-    global(isglobal)
+    global(isglobal),
+    passthrough(ispassthrough)
 {}
 
 Cursor Action::cursor() {

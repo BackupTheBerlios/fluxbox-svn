@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.cc,v 1.243.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: Window.cc,v 1.243.2.2 2004/01/28 11:03:03 rathnor Exp $
 
 #include "Window.hh"
 
@@ -75,7 +75,7 @@ namespace {
 
 void grabButton(Display *display, unsigned int button, 
                 Window window, Cursor cursor) {
-
+    /*
     //numlock
     XGrabButton(display, button, Mod1Mask|Mod2Mask, window, True,
                 ButtonReleaseMask | ButtonMotionMask, GrabModeAsync,
@@ -110,7 +110,7 @@ void grabButton(Display *display, unsigned int button,
     XGrabButton(display, button, Mod1Mask|Mod2Mask|Mod5Mask, window, True,
                 ButtonReleaseMask | ButtonMotionMask, GrabModeAsync,
                 GrabModeAsync, None, cursor);
-	
+    */	
 }
 
 // X event scanner for enter/leave notifies - adapted from twm
@@ -289,13 +289,16 @@ FluxboxWindow::~FluxboxWindow() {
         XUngrabPointer(display, CurrentTime);
     }
 
+    Fluxbox *fluxbox = Fluxbox::instance();
+
     // no longer a valid window to do stuff with
-    Fluxbox::instance()->removeWindowSearchGroup(frame().window().window());
+    fluxbox->removeWindowSearchGroup(frame().window().window());
 
     Client2ButtonMap::iterator it = m_labelbuttons.begin();
     Client2ButtonMap::iterator it_end = m_labelbuttons.end();
     for (; it != it_end; ++it) {
         frame().removeLabelButton(*(*it).second);
+        fluxbox->removeWindowTabSearch(it->second->window());
         delete (*it).second;
     }
     m_labelbuttons.clear();
@@ -372,9 +375,11 @@ void FluxboxWindow::init() {
                                       m_client->title());
     btn->setJustify(frame().theme().justify());
     m_labelbuttons[m_client] = btn;
+    fluxbox.saveWindowTabSearch(btn->window(), m_client);
+
     frame().addLabelButton(*btn);
     frame().setLabelButtonFocus(*btn);
-    btn->show();    
+    btn->show();
     FbTk::EventManager &evm = *FbTk::EventManager::instance();
     // we need motion notify so we mask it
     btn->setEventMask(ExposureMask | ButtonPressMask | ButtonReleaseMask | 
@@ -449,7 +454,7 @@ void FluxboxWindow::init() {
 
     Fluxbox::instance()->saveWindowSearchGroup(frame().window().window(), this);
 	
-    // update transient infomation
+    // update transient information
     m_client->updateTransientInfo();
 	
     // adjust the window decorations based on transience and window sizes
@@ -617,6 +622,7 @@ void FluxboxWindow::attachClient(WinClient &client) {
                                              frame().theme().font(),
                                              (*client_it)->title());
             btn->setJustify(frame().theme().justify());
+            Fluxbox::instance()->saveWindowTabSearch(btn->window(), *client_it);
             m_labelbuttons[(*client_it)] = btn;
             frame().addLabelButton(*btn);
             btn->show();
@@ -647,6 +653,7 @@ void FluxboxWindow::attachClient(WinClient &client) {
         FbTk::TextButton *btn = new FbTk::TextButton(frame().label(), 
                                          frame().theme().font(),
                                          client.title());
+        Fluxbox::instance()->saveWindowTabSearch(btn->window(), &client);
         m_labelbuttons[&client] = btn;
         frame().addLabelButton(*btn);
         btn->show();
@@ -682,7 +689,7 @@ void FluxboxWindow::attachClient(WinClient &client) {
 
 
 /// detach client from window and create a new window for it
-bool FluxboxWindow::detachClient(WinClient &client) {
+bool FluxboxWindow::detachClient(WinClient &client, int x, int y, bool use_coords) {
     if (client.m_win != this || numClients() <= 1)
         return false;
     
@@ -732,7 +739,14 @@ bool FluxboxWindow::detachClient(WinClient &client) {
     // otherwise this wouldn't be here (refer numClients() <= 1 return)
     client.m_win = screen().createWindow(client);
     m_client->raise();
-    setInputFocus();
+    if (use_coords) {
+        // must be same screen
+        screen().reassociateWindow(client.m_win, screen().currentWorkspaceID(), true);
+        client.m_win->move(x, y);
+        client.m_win->setCurrentClient(client, true);
+        client.m_win->show();
+    } else
+        setInputFocus();
     return true;
 }
 
@@ -780,6 +794,7 @@ bool FluxboxWindow::removeClient(WinClient &client) {
     if (label_btn != 0) {
         frame().removeLabelButton(*label_btn);
         evm.remove(label_btn->window());
+        Fluxbox::instance()->removeWindowTabSearch(label_btn->window());
         delete label_btn;
         label_btn = 0;
     }
@@ -926,6 +941,7 @@ void FluxboxWindow::associateClientWindow(bool use_attrs, int x, int y, unsigned
 
 void FluxboxWindow::grabButtons() {
 
+/*
     XGrabButton(display, Button1, AnyModifier, 
 		frame().window().window(), True, ButtonPressMask,
 		GrabModeSync, GrabModeSync, None, None);		
@@ -944,6 +960,7 @@ void FluxboxWindow::grabButtons() {
 	
     //---grab with "all" modifiers
     grabButton(display, Button3, frame().window().window(), None);
+*/
 }
 
 
@@ -2249,12 +2266,14 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
     m_last_button_x = be.x_root;
     m_last_button_y = be.y_root;
 
+    // cleans mods
     Fluxbox::instance()->keys().handler().buttonPressEvent(be);
 
     // check frame events first
+/*
     frame().buttonPressEvent(be);
 
-    if (be.button == 1 || (be.button == 3 && be.state == Mod1Mask)) {
+    if (be.button == 1) {
         if ((! focused) && (! screen().isSloppyFocus())) { //check focus
             setInputFocus();
         }
@@ -2268,10 +2287,21 @@ void FluxboxWindow::buttonPressEvent(XButtonEvent &be) {
         if (m_windowmenu.isVisible())
             m_windowmenu.hide();
     }
+*/
 }
+
 
 void FluxboxWindow::buttonReleaseEvent(XButtonEvent &re) {
     Fluxbox::instance()->keys().handler().buttonReleaseEvent(re);
+}
+
+
+FbTk::FbWindow *FluxboxWindow::getLabelWindow(WinClient *client) {
+    Client2ButtonMap::iterator it = m_labelbuttons.find(client);
+    if (it != m_labelbuttons.end())
+        return it->second;
+    else
+        return 0;
 }
 
 
@@ -2694,6 +2724,9 @@ void FluxboxWindow::snapWindowPos(int &orig_left, int &orig_top) {
 
 }
 
+WinClient *FluxboxWindow::getTabAt(int x, int y) {
+    return 0;
+}
 
 void FluxboxWindow::attachTo(int x, int y) {
     if (m_attaching_tab == 0)
@@ -3005,6 +3038,20 @@ void FluxboxWindow::close() {
         m_client->sendClose(false);
 }
 
+bool FluxboxWindow::onBorder(int x_root, int y_root) {
+    // translate to window space
+    int x = x_root - frame().x();
+    int y = y_root - frame().y();
+    int borderW = frame().window().borderWidth();
+    int width = frame().width();
+    int height = frame().height();
+
+    return (x < borderW ||
+            y < borderW ||
+            x > (width  + borderW) ||
+            y > (height + borderW));
+}
+
 void FluxboxWindow::setupWindow() {
     // sets up our window
     // we allow both to be done at once to share the commands
@@ -3135,3 +3182,24 @@ void FluxboxWindow::setupWindow() {
 
     menu.reconfigure(); // update graphics
 }
+
+#ifdef DEBUG
+    // Debugging helper functions
+
+inline void printWindow(const char * name, Window win, bool comma = true) {
+    cerr<<name<<" = "<<hex<<win<<dec;
+    if (comma)
+        cerr<<", ";
+}
+
+void FluxboxWindow::printWindows(bool deep) const {
+    cerr<<"DEBUG(printWindows(fbw "<<this<<") ";
+    printWindow("m_client.window", m_client->window());
+    printWindow("screen.root", screen().rootWindow().window(), false);
+    cerr<<endl;
+
+    frame().printWindows(deep);
+
+}
+
+#endif // DEBUG

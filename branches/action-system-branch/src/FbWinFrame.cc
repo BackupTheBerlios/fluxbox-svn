@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.cc,v 1.60.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: FbWinFrame.cc,v 1.60.2.2 2004/01/28 11:02:57 rathnor Exp $
 
 #include "FbWinFrame.hh"
 
@@ -49,31 +49,30 @@ FbWinFrame::FbWinFrame(FbWinFrameTheme &theme, FbTk::ImageControl &imgctrl,
     m_imagectrl(imgctrl),
     m_window(screen_num, x, y, width, height,  
              ButtonPressMask | ButtonReleaseMask |
-             ButtonMotionMask | 
              EnterWindowMask | LeaveWindowMask, true),
     m_titlebar(m_window, 0, 0, 100, 16, 
                ButtonPressMask | ButtonReleaseMask |
-               ButtonMotionMask | ExposureMask |
+               ExposureMask |
                EnterWindowMask | LeaveWindowMask),
     m_label(m_titlebar, 0, 0, 100, 16,
 	    ButtonPressMask | ButtonReleaseMask |
-            ButtonMotionMask | ExposureMask |
+            ExposureMask |
             EnterWindowMask | LeaveWindowMask),
     m_handle(m_window, 0, 0, 100, 5,
              ButtonPressMask | ButtonReleaseMask |
-             ButtonMotionMask | ExposureMask |
+             ExposureMask |
              EnterWindowMask | LeaveWindowMask),
     m_grip_right(m_handle, 0, 0, 10, 4,
                  ButtonPressMask | ButtonReleaseMask |
-                 ButtonMotionMask | ExposureMask |
+                 ExposureMask |
                  EnterWindowMask | LeaveWindowMask),
     m_grip_left(m_handle, 0, 0, 10, 4,
 		ButtonPressMask | ButtonReleaseMask |
-		ButtonMotionMask | ExposureMask |
+		ExposureMask |
 		EnterWindowMask | LeaveWindowMask),
     m_clientarea(m_window, 0, 0, 100, 100,
                  ButtonPressMask | ButtonReleaseMask |
-                 ButtonMotionMask | ExposureMask |
+                 ExposureMask |
                  EnterWindowMask | LeaveWindowMask),
     m_bevel(1),
     m_use_titlebar(true), 
@@ -379,7 +378,7 @@ void FbWinFrame::setClientWindow(Window win) {
     XSelectInput(display, win, PropertyChangeMask | StructureNotifyMask | 
                  FocusChangeMask);
     XSelectInput(display, m_window.window(), ButtonPressMask | ButtonReleaseMask |
-                 ButtonMotionMask | ExposureMask | EnterWindowMask | SubstructureRedirectMask);
+                 ExposureMask | EnterWindowMask | SubstructureRedirectMask);
 
     XFlush(display);
 
@@ -1264,3 +1263,52 @@ void FbWinFrame::gravityTranslate(int &x, int &y, int win_gravity, bool move_fra
         move(x,y);
     }
 }
+
+
+#ifdef DEBUG
+    // Debugging helper functions
+
+inline void printWindow(const char * name, Window win, bool comma = true) {
+    cerr<<name<<" = "<<hex<<win<<dec;
+    if (comma)
+        cerr<<", ";
+    else
+        cerr<<endl;
+}
+
+void FbWinFrame::printWindows(bool deep) const {
+
+    printWindow("  frame.window", window().window());
+    printWindow("titlebar", titlebar().window());
+    printWindow("clientarea", clientArea().window());
+    printWindow("label", label().window(), false);
+    printWindow("  handle", handle().window());
+    printWindow("gripLeft", gripLeft().window());
+    printWindow("gripRight", gripRight().window(), false);
+
+    if (deep) {
+        char buf[30];
+
+        for (size_t i=0; i < m_buttons_left.size(); ++i) {
+            sprintf(buf, "%sleftbutton %d win",(i==0)?"  ":"", i);
+            printWindow(buf, m_buttons_left[i]->window(), m_buttons_left.size()-1 != i);
+        }
+
+        for (size_t i=0; i < m_buttons_right.size(); ++i) {
+            sprintf(buf, "%srightbutton %d win",(i==0)?"  ":"", i);
+            printWindow(buf, m_buttons_right[i]->window(), m_buttons_right.size()-1 != i);
+        }
+
+        LabelList::const_iterator btn_it = m_labelbuttons.begin();
+        LabelList::const_iterator btn_it_end = m_labelbuttons.end();
+        size_t i=0;
+        for (; btn_it != btn_it_end; ++btn_it, ++i) {
+            sprintf(buf, "%slabelbutton %d win",(i==0)?"  ":"", i);
+            printWindow(buf, (*btn_it)->window(), m_labelbuttons.size()-1 != i);
+        }
+    }
+    cerr<<endl;
+
+}
+
+#endif // DEBUG

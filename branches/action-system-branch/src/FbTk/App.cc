@@ -36,7 +36,11 @@ App *App::instance() {
     return s_app;
 }
 
-App::App(const char *displayname):m_done(false) {
+App::App(const char *displayname):
+    m_done(false), 
+    m_server_grabs(0),
+    m_doubleclick_delay(250)
+{
     if (s_app != 0)
         throw std::string("Can't create more than one instance of FbTk::App");
     s_app = this;
@@ -66,6 +70,18 @@ void App::eventLoop() {
 
 void App::end() {
     m_done = true; //end loop in App::eventLoop
+}
+
+void App::grab() {
+    if (! m_server_grabs++)
+       XGrabServer(display());
+}
+
+void App::ungrab() {
+    if (! --m_server_grabs)
+        XUngrabServer(display());
+    if (m_server_grabs < 0)
+        m_server_grabs = 0;
 }
 
 }; // end namespace FbTk

@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WindowTools.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: WindowTools.hh,v 1.1.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 
 #ifndef FBTK_WINDOWTOOLS_HH
@@ -54,6 +54,7 @@ public:
     virtual ~WindowTransform();
 
     void useOutline(bool outline);
+    inline bool outline() const { return use_outline; }
 
     void setDrawable(Drawable d, GC gc);
     void resize(unsigned int new_width, unsigned int new_height);
@@ -90,6 +91,9 @@ public:
     inline int currY() const { return y; }
     inline unsigned int currWidth() const { return width; }
     inline unsigned int currHeight() const { return height; }
+
+    inline int origX() const { return orig_x; }
+    inline int origY() const { return orig_y; }
     inline unsigned int origWidth() const { return orig_width; }
     inline unsigned int origHeight() const { return orig_height; }
 
@@ -119,6 +123,11 @@ private:
     GC m_gc;
 
     FbWindow *m_window;
+};
+
+class WindowTools {
+public:
+    static Window parent(Window win);
 };
 
 }; // end namespace FbTk

@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: ActionHandler.hh,v 1.1.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: ActionHandler.hh,v 1.1.2.2 2004/01/28 11:03:35 rathnor Exp $
 
 #ifndef FBTK_ACTIONHANDLER_HH
 #define FBTK_ACTIONHANDLER_HH
@@ -28,7 +28,6 @@
 #include "ActionNode.hh"
 #include "EventHandler.hh"
 
-#include <list>
 #include <map>
 #include <set>
 #include <X11/Xlib.h>
@@ -52,15 +51,7 @@ namespace FbTk {
 class Action;
 class ActionContext;
 class ActionBinding;
-
-struct ltActionNode
-{
-  bool operator()(const ActionNode* s1, const ActionNode* s2) const
-  {
-      return (*s1) < (*s2);
-  }
-};
-
+class FbWindow;
 
 /**
  * This class is the main interface between X and the Application.
@@ -68,8 +59,10 @@ struct ltActionNode
  */
 class ActionHandler : public EventHandler {
 public:
+    typedef unsigned int (*GetLevelFunction)(Window win);
 
-    ActionHandler();
+
+    ActionHandler(GetLevelFunction func);
 
     // little dispatcher in case it's required
     void ActionHandler::handleEvent(XEvent &ev);
@@ -82,6 +75,8 @@ public:
     void keyReleaseEvent(XKeyEvent &ev);
 
     // reset action table (e.g. when re-reading keybinding file).
+    // This also clears all grabs, so you must re-register
+    // all foreign windows
     void resetActions();
 
     // register the given action description
@@ -90,8 +85,23 @@ public:
     // responsibility to delete or whatever it wants to do with it.
     void registerAction(ActionNode &binding);
 
+    // Artificially activate this action.
+    // Mainly needed for motion actions.
+    // The node and context can be deleted immediately after the call
+    // The action will be deleted on completion if it is not global.
+    // An appropriate grab will be instantiated if necessary
+    void triggerAction(Action *action, ActionContext &startcontext, bool is_press = true);
+
+    unsigned int getLevel(Window win);
+
+    // we may not control all windows, so this will put necessary
+    // grabs for actions of the given level onto any foreign windows.
+    void registerWindow(unsigned int level, Window win, int screen_num);
+    void registerWindow(unsigned int level, FbWindow &win);
+
 private:
     typedef std::set<ActionNode *, ltActionNode> ActionNodes;
+    typedef std::multimap<unsigned int, ActionNode *> ActionLevels;
 
     // does most of the work
     void processButtonEvent(XButtonEvent &ev, bool is_press);
@@ -99,7 +109,7 @@ private:
 
     void processEvent(ActionNode &event, ActionContext &context, bool is_press);
 
-    void grabBinding(ActionNode &binding);
+    void grabBinding(ActionNode &binding, ActionNode::ActionList *actionlist = 0);
     void ungrabBinding(ActionNode &binding);
 
     // Do the necessary work to initiate a [un]grab for a motionable action
@@ -110,6 +120,7 @@ private:
     bool checkMotionStopped(ActionContext &context) const;
 
     ActionNodes m_bindings;
+    ActionLevels m_levels;
 
     // for motion events, they get passed straight through
     Action *m_active_mouseaction;
@@ -120,6 +131,11 @@ private:
     unsigned int m_active_keymods; // what to wait for to stop grab
 
     ActionNode *m_currchain;
+
+    GetLevelFunction m_getlevel;
+
+    Time m_last_buttonpress_time;
+    unsigned int m_last_buttonpress_button;
 
 };
 

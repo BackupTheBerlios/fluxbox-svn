@@ -20,7 +20,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbCommandFactory.cc,v 1.19.2.1 2003/10/28 21:34:52 rathnor Exp $
+// $Id: FbCommandFactory.cc,v 1.19.2.2 2004/01/28 11:02:56 rathnor Exp $
 
 #include "FbCommandFactory.hh"
 
@@ -65,10 +65,12 @@ FbCommandFactory::FbCommandFactory() {
         "minimizewindow",
         "moveto",
         "move",
+        "movetitlebar",
         "moveincr",
         "movedown",
         "moveleft",
         "moveright",
+        "movetab",
         "movetableft",
         "movetabright",
         "moveup",
@@ -167,7 +169,7 @@ FbTk::Command *FbCommandFactory::stringToCommand(const std::string &command,
        std::istringstream is(arguments);
        int dx = 0, dy = 0;
        is >> dx >> dy;
-       return new MoveToCmd(dx,dy);    
+       return new MoveToCmd(dx,dy);
     }
     else if (command == "moveincr") {
         std::istringstream is(arguments);
@@ -305,6 +307,10 @@ FbTk::Action  *FbCommandFactory::stringToAction(const std::string &action,
         return &m_cyclewindows;
     } else if (action == "move") {
         return new MoveAction();
+    } else if (action == "movetitlebar") {
+        return new MoveAction(false);
+    } else if (action == "movetab") {
+        return new MoveTabAction();
     } else if (action == "resize") {
         return new ResizeAction();
     } else {
@@ -315,7 +321,7 @@ FbTk::Action  *FbCommandFactory::stringToAction(const std::string &action,
         if (cmd == 0)
             return 0;
         else
-            return new FbTk::CommandAction(cmd);
+            return new FbTk::CommandAction(cmd, 1);
     }
 }
 

@@ -25,9 +25,9 @@
 
 namespace FbTk {
 
-CommandAction::CommandAction(Command *cmd, bool delete_after)
-    : Action(true, false, false), // just a start action
-      m_command(cmd), m_delete_after(delete_after)
+CommandAction::CommandAction(Command *cmd, int level, bool delete_after, bool global, bool passthrough)
+    : Action(true, false, false, global, passthrough), // just a start action
+      m_command(cmd), m_delete_after(delete_after), m_level(level)
 {}
 
 CommandAction::~CommandAction() {
@@ -40,10 +40,11 @@ void CommandAction::execute() {
     m_command->execute();
 }
 
-void CommandAction::start(ActionContext &context) {
+bool CommandAction::start(ActionContext &context) {
     // ignores context
 
     m_command->execute();
+    return true; // not much choice
 }
 
 }; // end namespace FbTk
