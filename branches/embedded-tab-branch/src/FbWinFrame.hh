@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.hh,v 1.4 2003/02/15 01:54:18 fluxgen Exp $
+// $Id: FbWinFrame.hh,v 1.4.2.1 2003/04/11 15:32:11 fluxgen Exp $
 
 #ifndef FBWINFRAME_HH
 #define FBWINFRAME_HH
@@ -87,8 +87,8 @@ public:
     void removeAllButtons();
     /// attach a client window for client area
     void setClientWindow(Window win);
-    /// same as above but with FbWindow, NOT IMPLEMENTED!
-    void setClientWindow(FbTk::FbWindow win);
+    /// same as above but with FbWindow
+    void setClientWindow(FbTk::FbWindow &win);
     /// remove attached client window
     void removeClient();
     /// redirect events to another eventhandler
@@ -186,7 +186,6 @@ private:
         m_grip_left; ///< left grip
     FbTk::FbWindow m_handle; ///< handle between grips
     FbTk::FbWindow m_clientarea; ///< window that holds client window @see setClientWindow
-    Window m_clientwin; ///< client window in clientarea
     //@}
     typedef std::vector<FbTk::Button *> ButtonList;
     ButtonList m_buttons_left, ///< buttons to the left
