@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWindow.hh,v 1.8.2.1 2003/04/02 06:07:26 fluxgen Exp $
+// $Id: FbWindow.hh,v 1.8.2.2 2003/04/09 08:35:11 fluxgen Exp $
 
 #ifndef FBTK_FBWINDOW_HH
 #define FBTK_FBWINDOW_HH
@@ -106,6 +106,25 @@ private:
 };
 
 bool operator == (Window win, const FbWindow &fbwin);
+
+class ChangeProperty {
+public:
+    ChangeProperty(Display *disp, Atom prop, int mode,
+                   unsigned char *state, int num):m_disp(disp),
+    m_prop(prop), m_state(state), m_num(num), m_mode(mode){
+        
+    }
+    void operator () (FbTk::FbWindow *win) {
+        XChangeProperty(m_disp, win->window(), m_prop, m_prop, 32, m_mode,
+                        m_state, m_num);
+    }
+private:
+    Display *m_disp;
+    Atom m_prop;
+    unsigned char *m_state;
+    int m_num;
+    int m_mode;
+};
 
 }; // end namespace FbTk
 
