@@ -1,0 +1,14 @@
+News in 0.9.8:
+    * Transparent toolbar
+      Change the toolbar alpha in the style
+      toolbar.alpha: 0-255
+      or
+      toolbar.<tool>.alpha: 0-255
+Bug fixes: 
+    * Fixed image cache problem (the memory bug)
+    * Fixed color parsing bug
+    * Fixed iconbar bug in "All Windows" mode
+    * Fixed border bug with left/right alignment in iconbar
+    * Fixed a loop issue in fluxbox-generate_menu
+
+See ChangeLog for more details
