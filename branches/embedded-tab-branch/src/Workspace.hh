@@ -38,6 +38,7 @@
 
 class BScreen;
 class FluxboxWindow;
+class WinClient;
 
 /**
 	Handles a single workspace
@@ -64,6 +65,7 @@ public:
     void shutdown();
     int addWindow(FluxboxWindow *win, bool place = false);
     int removeWindow(FluxboxWindow *win);
+    void removeWindow(WinClient &client);
     BScreen &getScreen() { return screen; }
     FluxboxWindow *getLastFocusedWindow() { return lastfocus; }
 

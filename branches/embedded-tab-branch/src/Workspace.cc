@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Workspace.cc,v 1.50 2003/02/20 21:00:29 fluxgen Exp $
+// $Id: Workspace.cc,v 1.50.2.1 2003/04/07 10:58:40 fluxgen Exp $
 
 #include "Workspace.hh"
 
@@ -32,6 +32,7 @@
 #include "Window.hh"
 #include "StringUtil.hh"
 #include "SimpleCommand.hh"
+#include "WinClient.hh"
 
 // use GNU extensions
 #ifndef	 _GNU_SOURCE
@@ -71,7 +72,7 @@ int countTransients(const FluxboxWindow &win) {
 class RaiseFocusAndSetWorkspace: public FbTk::Command {
 public:
     RaiseFocusAndSetWorkspace(Workspace &space, FluxboxWindow &win):
-        m_space(space), m_win(win) { }
+        m_space(space), m_winclient(win.winClient()) { }
     void execute() { 
         // determine workspace change
         for (size_t i=0; i<m_space.getScreen().getCount(); i++) {
@@ -81,11 +82,11 @@ public:
             }
         }
 
-        m_win.raiseAndFocus();
+        m_winclient.m_win->raiseAndFocus();
     }
 private:
     Workspace &m_space;
-    FluxboxWindow &m_win;
+    WinClient &m_winclient;
 };
 
 };
@@ -244,30 +245,46 @@ int Workspace::removeWindow(FluxboxWindow *w) {
     Windows::iterator it = m_windowlist.begin();
     Windows::iterator it_end = m_windowlist.end();
     for (; it != it_end; ++it) {
-        if (*it == w) {
+        if ((*it) == w) {
+#ifdef DEBUG
+            cerr<<__FILE__<<"("<<__FUNCTION__<<"):"<<w<<endl;
+#endif // DEBUG
             m_windowlist.erase(it);
             break;
         }
     }
     updateClientmenu();
-	
+    /*	
     if (!w->isStuck())
         screen.updateNetizenWindowDel(w->getClientWindow());
 
-    {
+        {
         Windows::iterator it = m_windowlist.begin();
         Windows::const_iterator it_end = m_windowlist.end();
         for (int i = 0; it != it_end; ++it, ++i) {
             (*it)->setWindowNumber(i);
         }
     }
-	
+    */
     if (lastfocus == w || m_windowlist.empty())
         lastfocus = 0;
 	
     return m_windowlist.size();
 }
 
+void Workspace::removeWindow(WinClient &client) {
+    if (client.m_win->numClients() == 0) {
+        Windows::iterator it = m_windowlist.begin();
+        Windows::iterator it_end = m_windowlist.end();
+        for (; it != it_end; ++it) {
+            if (*it == client.m_win) {     
+                m_windowlist.erase(it);
+                break;
+            }
+        }
+    }
+    updateClientmenu();
+}
 
 void Workspace::showAll() {
     Windows::iterator it = m_windowlist.begin();
@@ -466,12 +483,12 @@ void Workspace::updateClientmenu() {
     m_clientmenu.removeAll();
     Windows::iterator win_it = m_windowlist.begin();
     Windows::iterator win_it_end = m_windowlist.end();
-    for (; win_it != win_it_end; ++win_it) {
+    /*    for (; win_it != win_it_end; ++win_it) {
         FbTk::RefCount<FbTk::Command> 
             raise_and_focus(new RaiseFocusAndSetWorkspace(*this, *(*win_it)));
 
         m_clientmenu.insert((*win_it)->getTitle().c_str(), raise_and_focus); 
-    }
+    }*/
     m_clientmenu.update();
 }
 
