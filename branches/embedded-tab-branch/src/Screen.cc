@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118.2.5 2003/04/11 22:17:16 fluxgen Exp $
+// $Id: Screen.cc,v 1.118.2.6 2003/04/12 21:08:48 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -546,7 +546,7 @@ BScreen::BScreen(ResourceManager &rm,
 
     m_configmenu.reset(createMenuFromScreen(*this));
     setupConfigmenu(*m_configmenu.get());
-    m_configmenu->setInternalMenu();
+    //    m_configmenu->setInternalMenu();
 
     workspacemenu->setItemSelected(2, true);
 
@@ -1430,17 +1430,18 @@ void BScreen::initMenu() {
     I18n *i18n = I18n::instance();
 	
     if (m_rootmenu.get()) {
-        Rootmenus::iterator it = rootmenuList.begin();
-        Rootmenus::iterator it_end = rootmenuList.end();
-        for (; it != it_end; ++it) {
-            if (*it != m_configmenu.get()) {
-                delete *it;
-            }
-        }
-        rootmenuList.clear();
-        //    rootmenuList.erase(rootmenuList.begin(), rootmenuList.end());
+        /*        Rootmenus::iterator it = rootmenuList.begin();
+                  Rootmenus::iterator it_end = rootmenuList.end();
+                  for (; it != it_end; ++it) {
+                  if (*it != m_configmenu.get()) {
+                  delete *it;
+                  }
+                  }
+                  rootmenuList.clear();
+        */
+        rootmenuList.erase(rootmenuList.begin(), rootmenuList.end());
 
-       while (m_rootmenu->numberOfItems())
+        while (m_rootmenu->numberOfItems())
             m_rootmenu->remove(0);			
     } else
         m_rootmenu.reset(createMenuFromScreen(*this));
