@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.104.2.5 2003/04/11 10:16:34 fluxgen Exp $
+// $Id: fluxbox.cc,v 1.104.2.6 2003/04/11 13:45:12 fluxgen Exp $
 
 
 #include "fluxbox.hh"
@@ -714,11 +714,12 @@ void Fluxbox::handleEvent(XEvent * const e) {
 
                 removeWindowSearch(client->window());
 
-                win->removeClient(*client);
-                if (win->numClients() == 0) {            
+                delete client;
+                
+                if (win->numClients() == 0) {
                     delete win;
                 }
-                delete client;
+
             }
         } 
 
@@ -936,17 +937,16 @@ void Fluxbox::handleUnmapNotify(XUnmapEvent &ue) {
 
         if (client != 0) {
             win->unmapNotifyEvent(ue);
+            client = 0; // it's invalid now when win destroyed the client
 
             if (win == focused_window)
                 focused_window = 0;
-            
-            removeWindowSearch(client->window());
 
+            // finaly destroy window if empty
             if (win->numClients() == 0) {
                 delete win;
                 win = 0;
             }
-            delete client;
         }  
     }
 
@@ -2256,7 +2256,8 @@ void Fluxbox::setFocusedWindow(FluxboxWindow *win) {
             focused_window = win;     // update focused window
             win->setFocusFlag(True); // set focus flag
             // select this window in workspace menu
-            wkspc->menu().setItemSelected(win->getWindowNumber(), true);
+            if (wkspc != 0)
+                wkspc->menu().setItemSelected(win->getWindowNumber(), true);
         }
     } else
         focused_window = 0;
