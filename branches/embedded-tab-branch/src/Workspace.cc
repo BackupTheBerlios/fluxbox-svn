@@ -1,5 +1,5 @@
 // Workspace.cc for Fluxbox
-// Copyright (c) 2001 - 2003 Henrik Kinnunen (fluxgen at users.sourceforge.net)
+// Copyright (c) 2001 - 2003 Henrik Kinnunen (fluxgen[at]users.sourceforge.net)
 //
 // Workspace.cc for Blackbox - an X11 Window manager
 // Copyright (c) 1997 - 2000 Brad Hughes (bhughes at tcac.net)
@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Workspace.cc,v 1.50.2.2 2003/04/07 19:17:45 fluxgen Exp $
+// $Id: Workspace.cc,v 1.50.2.3 2003/04/09 09:19:03 fluxgen Exp $
 
 #include "Workspace.hh"
 
@@ -71,8 +71,8 @@ int countTransients(const FluxboxWindow &win) {
 
 class RaiseFocusAndSetWorkspace: public FbTk::Command {
 public:
-    RaiseFocusAndSetWorkspace(Workspace &space, FluxboxWindow &win):
-        m_space(space), m_winclient(win.winClient()) { }
+    RaiseFocusAndSetWorkspace(Workspace &space, WinClient &client):
+        m_space(space), m_winclient(client) { }
     void execute() { 
         // determine workspace change
         for (size_t i=0; i<m_space.getScreen().getCount(); i++) {
@@ -81,7 +81,10 @@ public:
                 break;
             }
         }
+        if (m_winclient.m_win == 0)
+            return;
 
+        m_winclient.m_win->setCurrentClient(m_winclient);
         m_winclient.m_win->raiseAndFocus();
     }
 private:
@@ -255,7 +258,9 @@ int Workspace::removeWindow(FluxboxWindow *w) {
     if (lastfocus == w || m_windowlist.empty())
         lastfocus = 0;
 	
-
+#ifdef DEBUG
+    cerr<<"Removed window: "<<w<<endl;
+#endif // DEBUG
     return m_windowlist.size();
 }
 
@@ -379,16 +384,7 @@ void Workspace::checkGrouping(FluxboxWindow &win) {
                     // make sure the window is groupable
                     if ( !(*wit)->isGroupable())
                         break; // try next name
-                    //toggle tab on
-                    if ((*wit)->getTab() == 0)
-                        (*wit)->setTab(true);
-                    if (win.getTab() == 0)
-                        win.setTab(true);
-                    // did we succefully set the tab?
-                    if ((*wit)->getTab() == 0)
-                        break; // try another window
-                    (*wit)->getTab()->insert(win.getTab());
-
+                    cerr<<__FILE__<<"("<<__FUNCTION__<<") TODO attach client here!"<<endl;
                     return; // grouping done
                 }
             }
@@ -442,7 +438,8 @@ void Workspace::setName(const std::string &name) {
         char tname[128];
         sprintf(tname, I18n::instance()->
                 getMessage(
-                           FBNLS::WorkspaceSet, FBNLS::WorkspaceDefaultNameFormat,
+                           FBNLS::WorkspaceSet, 
+                           FBNLS::WorkspaceDefaultNameFormat,
                            "Workspace %d"), m_id + 1); //m_id starts at 0
         m_name = tname;
     }
@@ -463,21 +460,33 @@ void Workspace::shutdown() {
     while (!m_windowlist.empty()) {
         // restore with remap on all clients in that window
         m_windowlist.back()->restore(true); 
-        delete m_windowlist.back(); //delete window (the window removes it self from m_windowlist)
+        //delete window (the window removes it self from m_windowlist)
+        delete m_windowlist.back(); 
     }
 }
-//!! TODO
-void Workspace::updateClientmenu() {
-    /*    m_clientmenu.removeAll();
-          Windows::iterator win_it = m_windowlist.begin();
-          Windows::iterator win_it_end = m_windowlist.end();
-          for (; win_it != win_it_end; ++win_it) {
-          FbTk::RefCount<FbTk::Command> 
-          raise_and_focus(new RaiseFocusAndSetWorkspace(*this, *(*win_it)));
 
-          m_clientmenu.insert((*win_it)->getTitle().c_str(), raise_and_focus); 
-          }
-    */
+void Workspace::updateClientmenu() {
+    // remove all items and then add them again
+    m_clientmenu.removeAll();
+    // for each fluxboxwindow add every client in them to our clientlist    
+    Windows::iterator win_it = m_windowlist.begin();
+    Windows::iterator win_it_end = m_windowlist.end();
+    for (; win_it != win_it_end; ++win_it) {
+        // add every client in this fluxboxwindow to menu
+        FluxboxWindow::ClientList::iterator client_it = 
+            (*win_it)->clientList().begin();
+        FluxboxWindow::ClientList::iterator client_it_end = 
+            (*win_it)->clientList().end();
+        for (; client_it != client_it_end; ++client_it) {
+            FbTk::RefCount<FbTk::Command> 
+                raise_and_focus(new RaiseFocusAndSetWorkspace(*this, 
+                                                              *(*client_it)));
+
+            m_clientmenu.insert((*client_it)->title().c_str(), 
+                                raise_and_focus); 
+        }
+    }
+    
     m_clientmenu.update();
 }
 
