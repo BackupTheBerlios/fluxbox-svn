@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118.2.4 2003/04/09 15:59:48 fluxgen Exp $
+// $Id: Screen.cc,v 1.118.2.5 2003/04/11 22:17:16 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -1230,7 +1230,6 @@ void BScreen::setupWindowActions(FluxboxWindow &win) {
                                           frame.titlebar(),
                                           0, 0, 10, 10);
                 newbutton->setOnClick(shade_cmd);
-
             }
         
             if (newbutton != 0) {
@@ -1265,6 +1264,11 @@ void BScreen::setupWindowActions(FluxboxWindow &win) {
     menu.insert("Raise", raise_cmd);
     menu.insert("Lower", lower_cmd);
     menu.insert("Layer...", &win.getLayermenu());
+    CommandRef next_client_cmd(new WindowCmd(win, &FluxboxWindow::nextClient));
+    CommandRef prev_client_cmd(new WindowCmd(win, &FluxboxWindow::prevClient));
+    menu.insert("Next Client", next_client_cmd);
+    menu.insert("Prev Client", prev_client_cmd);
+
     menu.insert("¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯¯");
     menu.insert("Close", close_cmd);
 
