@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.cc,v 1.14.2.1 2003/04/03 22:39:30 rathnor Exp $
+// $Id: FbWinFrame.cc,v 1.14.2.2 2003/04/07 10:23:38 fluxgen Exp $
 
 #include "FbWinFrame.hh"
 #include "ImageControl.hh"
@@ -250,10 +250,10 @@ void FbWinFrame::setClientWindow(Window win) {
 
     XChangeSaveSet(display, win, SetModeInsert);
     XSetWindowAttributes attrib_set;
-    // no events for client window while we reparent it
-    XSelectInput(display, m_clientarea.window(), NoEventMask);
+    // sync old events so we can discard events from reparent later
+    XSync(display, False);
     XReparentWindow(display, win, m_clientarea.window(), 0, 0);
-    XSelectInput(display, m_clientarea.window(), SubstructureRedirectMask);
+    XSync(display, True); // discard unmap notify event
 
     XFlush(display);
 
