@@ -1,0 +1,405 @@
+#!/bin/sh
+#
+# Set wallpaper for fluxbox.
+#
+# Copyright (c) 2003 Han Boetes <han@mijncomputer.nl>
+#
+# Permission is hereby granted, free of charge, to any person obtaining
+# a copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be
+# included in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+# EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# $Id: fbsetbg,v 1.23 2003/11/23 01:19:01 rathnor Exp $
+
+# Portability notes:
+# To guarantee this script works on all platforms that support fluxbox
+# please keep the following restrictions in mind:
+#
+# - don't use if ! command;, use command; if [ $? -ne 0 ];
+# - don't use [ -e file ] use [ -r file ]
+# - don't use $(), use ``
+# - don't use ~, use ${HOME}
+# - don't use id -u, use whoami
+# - don't use echo -e
+# - getopts won't work on all platforms, but the config-file can
+#   compensate for that.
+# - various software like grep/sed/perl may be not present or not
+#   the version you have. for example grep '\W' only works on gnu-grep.
+#   Keep this in mind, use bare basic defaults.
+# - Do _NOT_ suggest to use #!/bin/bash. Not everybody uses bash.
+
+# TODO purheps: xprop -root _WIN_WORKSPACE
+# _NET_CURRENT_DESKTOP
+
+# The wallpapersetter is selected in this order
+wpsetters=${wpsetters:=Esetroot wmsetbg feh chbg display qiv xv xsri xli xsetbg} # broken icewmbg'
+lastwallpaper=${HOME}/.fluxbox/lastwallpaper
+
+
+WHOAMI=`whoami`
+[ "$WHOAMI" = root ] && PATH=/bin:/usr/bin/:/usr/local/bin:/usr/X11R6/bin
+
+command="`basename \"$0\"`"
+
+
+# Functions
+display_usage() {
+    cat << EOF
+Usage: $command [-u wallpapersetter] [-fFcCtTaA /path/to/wallpaper] [-l] [-h] [-i] [-p]
+Use $command -h for a complete help message.
+
+EOF
+}
+
+display_help() {
+    display_usage
+    cat << EOF
+
+Options:
+
+    -f  Set fullscreen wallpaper
+    -c  Set centered wallpaper
+    -t  Set tiled wallpaper
+    -a  Set maximized wallpaper, preserving aspect.
+        ( if your bgsetter doesn't support this
+          we fall back to -f )
+
+    -F,-C,-T,-A same as uncapsed but without remembering.
+
+    -h  Display this help
+
+    -l  Set previous wallpaper
+
+    -i  Information about selected wallpaper command
+    -d  (deprecated, use -i) Debug info
+    -p  Tips
+    -u  Use specified wallpapersetter
+
+Files:
+
+    ~/.fluxbox/lastwallpaper     In this file the wallpaper you set
+                                 will be stored, for the -l option:
+Environment variables:
+    wpsetters   Wallpapersetters to use.
+                example:
+                  wpsetters=feh fbsetbg wallpaper.jpg
+
+    DISPLAY     The display you want to set the wallpaper on.
+                example:
+                  DISPLAY=:0.0 fbsetbg -l
+
+EOF
+}
+
+display_tips() {
+    cat << EOF
+Common tips to use with $command:
+
+1) To replace all occurrences of bsetbg with $command in a file use this
+   command:
+
+   perl -pi -e 's,([^f]|^)bsetbg,$command,' filename
+
+2) If you want the style to set the wallpaper and you want $command to
+   remember the previous wallpaper put this in your ~/.fluxbox/init
+
+   session.screen0.rootCommand:    $command -l
+
+3) Use $command -i to find out what wallpapersetter $command will be
+   used and what I think about it.
+
+EOF
+}
+
+# ugly code for solaris compat.
+case `uname` in
+    Linux|*BSD)
+        find_it() {
+            which $1 > /dev/null 2>&1 && shift && $*
+        }
+        ;;
+    *)
+        find_it() {
+            file=`which $1 2> /dev/null`
+            if [ -x "$file" ]; then
+                if [ $# -gt 1 ]; then
+                    shift
+                    $*
+                fi
+                return 0
+            else
+                return 1
+            fi
+        }
+        ;;
+esac
+
+message() {
+    # echo if we have terminal output, otherwise
+    # pop up a window
+    if [ -t 1 ]; then
+        echo "$command: $@"
+    else
+        xmessage -center "$command: $@"
+    fi
+}
+
+remembercommand() {
+    grep -vs "|${DISPLAY}$" ${lastwallpaper} > ${lastwallpaper}.tmp
+    mv -f ${lastwallpaper}.tmp ${lastwallpaper}
+    # Make dir/../../path/file.jpg work
+    case $wallpaper in
+        # no spaces allowed between the varname and '|'
+        /*) echo $option'|'$wallpaper'|'$DISPLAY >> $lastwallpaper ;;
+        *)  echo $option'|'$PWD/$wallpaper'|'$DISPLAY >> $lastwallpaper ;;
+    esac
+}
+
+debugfbsetbg() {
+    echo
+    echo $debugstory
+    echo
+    exit 0
+}
+
+if [ $# -eq 0 ]; then
+    message "no options given"
+    display_help
+    exit 1
+fi
+
+
+unset debug
+
+# Parse command-line options
+while [ $# -gt 0 ]; do
+    case "$1" in
+        -u)
+            if find_it "$2"; then
+                wpsetters=$2
+            else
+                message "Couldn't find \"$2\" for wallpapersetter"
+                display_usage
+                exit 1
+            fi
+            shift 2 ;;
+        -d|-i) debug=true
+            break ;;
+        -a) option='$aspect'
+            wallpaper=$2
+            break ;;
+        -f) option='$full'
+            wallpaper=$2
+            break ;;
+        -c) option='$center'
+            wallpaper=$2
+            break ;;
+        -t) option='$tile'
+            wallpaper=$2
+            break ;;
+        -A) option='$aspect'
+            wallpaper=$2
+            remember=false
+            break ;;
+        -F) option='$full'
+            wallpaper=$2
+            remember=false
+            break ;;
+        -C) option='$center'
+            wallpaper=$2
+            remember=false
+            break ;;
+        -T) option='$tile'
+            wallpaper=$2
+            remember=false
+            break ;;
+        -l)
+            if [ -r "$lastwallpaper" ]; then
+                option=`grep "|${DISPLAY}$"    $lastwallpaper|cut -d'|' -f1`
+                wallpaper=`grep "|${DISPLAY}$" $lastwallpaper|cut -d'|' -f2`
+                if [ -z "$wallpaper" ]; then
+                    message "No previous wallpaper recorded for display ${DISPLAY}"
+                    exit 1
+                fi
+            fi
+            remember=false
+            break
+            ;;
+        -p) display_tips ; exit 0 ;;
+        -h) display_help ; exit 0 ;;
+        --)
+            echo "$command doesn't recognize -- gnu-longopts."
+            echo 'Use $command -h for a help message.'
+            display_usage
+            exit 1 ;;
+        -*)
+            echo 1>&2 "$command: unrecognized option "\`"$1'"
+            display_usage
+            exit 1
+            ;;
+        *)
+            if [ ! -r "$1" ]; then
+                echo "$1 isn't an existing wallpaper or a valid option." >&2
+                display_usage
+                exit 1
+            elif [ -z "$1" ]; then
+                message 'No wallpaper to set' >&2
+                display_usage
+                exit 1
+            else
+                wallpaper=$1
+                break
+            fi
+            ;;
+    esac
+done
+
+# Find the default wallpapersetter
+for wpsetter in $wpsetters; do
+    if find_it $wpsetter; then
+        WPSETTER=$wpsetter
+        break
+    fi
+done
+
+standardrant=\
+"$WPSETTER sets the 'wrong' wallpaper. Transparency for fluxbox and
+apps like aterm and xchat won't work right with it. Consider installing
+feh, wmsetbg (from windowmaker) or Esetroot (from Eterm) and I'll use
+them instead."
+
+standardok=\
+"$WPSETTER is a nice wallpapersetter. You won't have any problems."
+
+case $WPSETTER in
+    chbg)
+        full='-once -mode maximize'
+        tile='-once -mode tile'
+        center='-once -mode center'
+        aspect='-once -mode smart -max_grow 100 -max_size 100'
+        debugstory="chbg supports all features but it doesn't report errors. I reported this bug to the chbg developers."
+        ;;
+    xsri)
+        full='--center-x --center-y --scale-width=100 --scale-height=100'
+        tile='--tile'
+        center='--center-x --center-y --color=black'
+        aspect='--center-x --center-y --scale-width=100 --scale-height=100 --keep-aspect --color=black'
+        debugstory=$standardok
+        ;;
+    display)
+        full="`xwininfo -root 2> /dev/null|grep geom` -window root"
+        tile='-window root'
+        center='-backdrop -window root'
+        aspect=$full
+        debugstory=$standardrant
+        ;;
+    Esetroot)
+        full='-scale'
+        tile=''
+        center='-c'
+        aspect='-fit'
+        debugstory=$standardok
+        ;;
+    wmsetbg)
+        full='-s -S'
+        tile='-t'
+        center='-b black -e'
+        aspect='-b black -a'
+        debugstory=$standardok
+        ;;
+    xsetbg)
+        tile='-border black'
+        center='-center -border black'
+        aspect='-fullscreen -border black'
+        full=$aspect #broken
+        debugstory="xsetbg is actually xli. The fillscreen option (-f) is broken, defaults to (-a). $standardrant"
+        ;;
+    xli)
+        tile='-onroot -quiet -border black'
+        center='-center -onroot -quiet -border black'
+        aspect='-fullscreen -onroot -quiet -border black'
+        full=$aspect #broken
+        debugstory="The fillscreen option (-f) is broken, defaults to (-a). $standardrant"
+        ;;
+    qiv)
+        full='--root_s'
+        tile='--root_t'
+        center='--root'
+        aspect='-m --root'
+        debugstory=$standardrant
+        ;;
+    xv)
+        full='-max -smooth -root -quit'
+        tile='-root -quit'
+        center='-rmode 5 -root -quit'
+        aspect='-maxpect -smooth -root -quit'
+        debugstory=$standardrant
+        ;;
+    feh)
+        full='--bg-scale'
+        tile='--bg-tile'
+        center='--bg-center'
+        aspect=$full
+        debugstory=$standardok
+        ;;
+    icewmbg)
+        tile='-s'
+        full=$tile
+        center=$tile
+        aspect=$tile
+        debugstory="icewmbg does support transparency, but only tiling. And I noticed odd
+errormessages with aterm. Don't use it unless you have to."
+        ;;
+    '')
+        message \
+"I can't find an app to set the wallpaper with. You can install one in
+many many ways but I will give you some simple advice: install Eterm and
+you're set. Eterm provides Esetroot and thats a great wallpaper setter. I
+recommend you install the package provided by your distro."
+        exit 1
+        ;;
+esac
+
+if [ "$debug" = true ];then
+    debugfbsetbg
+    exit 0
+fi
+
+option=${option:='$full'}
+
+if [ ! -r "$wallpaper" ]; then
+    message "Can't find wallpaper $wallpaper"
+    exit 1
+fi
+
+if [ -z "$DISPLAY" ];then
+    message "You are not connected to an X session\nPerhaps you should set the DISPLAY environment variable?"
+    exit 1
+fi
+
+
+$WPSETTER `eval echo $option` "$wallpaper"
+if [ $? -ne 0 ]; then
+    message "Something went wrong while setting the wallpaper.
+Run '$WPSETTER "`eval echo $option` $wallpaper"' from an xterm to find out what."
+    exit 1
+fi
+
+#remember previous wallpaper
+if [ ! "$remember" = false ]; then
+    remembercommand
+fi
