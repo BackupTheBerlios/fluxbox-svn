@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.hh,v 1.44.2.1 2003/04/04 15:04:35 fluxgen Exp $
+// $Id: fluxbox.hh,v 1.44.2.2 2003/04/07 20:11:29 fluxgen Exp $
 
 #ifndef	 FLUXBOX_HH
 #define	 FLUXBOX_HH
@@ -182,10 +182,7 @@ public:
     inline const Cursor &getLowerRightAngleCursor() const { return cursor.lr_angle; }
 
 
-#ifndef	 HAVE_STRFTIME
-
     enum { B_AMERICANDATE = 1, B_EUROPEANDATE };
-#endif // HAVE_STRFTIME
 	
     typedef std::vector<Fluxbox::Titlebar> TitlebarList;
 		
