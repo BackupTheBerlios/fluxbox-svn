@@ -19,12 +19,13 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.cc,v 1.1.2.3 2003/04/09 16:01:09 fluxgen Exp $
+// $Id: WinClient.cc,v 1.1.2.4 2003/04/11 13:33:18 fluxgen Exp $
 
 #include "WinClient.hh"
 
 #include "Window.hh"
 #include "fluxbox.hh"
+#include "Screen.hh"
 #include "i18n.hh"
 
 #include <iostream>
@@ -52,11 +53,46 @@ WinClient::WinClient(Window win, FluxboxWindow &fbwin):FbTk::FbWindow(win),
 
 WinClient::~WinClient() {
 #ifdef DEBUG
-    cerr<<__FILE__<<"("<<__FUNCTION__<<")"<<endl;
+    cerr<<__FILE__<<"(~"<<__FUNCTION__<<")"<<endl;
 #endif // DEBUG
+
     m_diesig.notify();
 
     Fluxbox *fluxbox = Fluxbox::instance();
+
+    if (transient_for != 0) {
+        if (transientFor() == m_win) {
+            transient_for = 0;
+        }
+
+        fluxbox->setFocusedWindow(transient_for);
+
+        if (transient_for != 0) {
+            FluxboxWindow::ClientList::iterator client_it = 
+                transientFor()->clientList().begin();
+            FluxboxWindow::ClientList::iterator client_it_end = 
+                transientFor()->clientList().end();
+            for (; client_it != client_it_end; ++client_it) {
+                (*client_it)->transientList().remove(m_win);
+            }
+
+            transient_for->setInputFocus();
+            transient_for = 0;
+        }
+    }
+	
+    while (!transients.empty()) {
+        WinClient *client = transients.back()->findClient(window());
+        if (client != 0)
+            client->transient_for = 0;
+        transients.pop_back();
+    }
+	
+    if (window_group != 0) {
+        fluxbox->removeGroupSearch(window_group);
+        window_group = 0;
+    }
+
     if (mwm_hint != 0)
         XFree(mwm_hint);
 
@@ -66,29 +102,10 @@ WinClient::~WinClient() {
     if (window())
         fluxbox->removeWindowSearch(window());
 
-    if (transient_for != 0) {
-        if (transient_for == m_win) {
-            transient_for = 0;
-        }
+    if (m_win != 0)
+        m_win->removeClient(*this);
+    m_win = 0;
 
-        fluxbox->setFocusedWindow(transient_for);
-
-        if (transient_for) {
-            transient_for->m_client->transients.remove(m_win);			
-            transient_for->setInputFocus();
-            transient_for = 0;
-        }
-    }
-	
-    while (!transients.empty()) {
-        transients.back()->m_client->transient_for = 0;
-        transients.pop_back();
-    }
-	
-    if (window_group) {
-        fluxbox->removeGroupSearch(window_group);
-        window_group = 0;
-    }
 }
 
 void WinClient::updateRect(int x, int y, 
@@ -171,7 +188,17 @@ void WinClient::updateTransientInfo() {
         return;
     // remove us from parent
     if (transientFor() != 0) {
-       transientFor()->m_client->transientList().remove(m_win);
+        //!! TODO
+        // since we don't know which client in transientFor()
+        // that we're transient for then we just remove us 
+        // from every client in transientFor() clientlist
+        FluxboxWindow::ClientList::iterator client_it = 
+            transientFor()->clientList().begin();
+        FluxboxWindow::ClientList::iterator client_it_end = 
+            transientFor()->clientList().end();
+        for (; client_it != client_it_end; ++client_it) {
+            (*client_it)->transientList().remove(m_win);
+        }
     }
     
     transient_for = 0;
@@ -180,18 +207,19 @@ void WinClient::updateTransientInfo() {
     Window win;
     if (!XGetTransientForHint(disp, window(), &win))
         return;
-	
+
+    // we can't be transient to ourself
     if (win == window())
         return;
 	
-    if (win != 0 && Fluxbox::instance()->searchScreen(win) == 0) {
+    if (win != 0 && m_win->getScreen().getRootWindow() == win) {
         m_win->modal = true;
         return;
     }
-	
+
     transient_for = Fluxbox::instance()->searchWindow(win);
     if (transient_for != 0 &&
-        window_group != None && win == window_group) {		
+        window_group != None && win == window_group) {
         transient_for = Fluxbox::instance()->searchGroup(win, m_win);
     }
 	
@@ -199,20 +227,21 @@ void WinClient::updateTransientInfo() {
     for (FluxboxWindow *w = m_win; w != 0; w = w->m_client->transient_for) {
         if (w == w->m_client->transient_for) {
             w->m_client->transient_for = 0;
-#ifdef DEBUG	
-            cerr<<__FILE__<<"("<<__FUNCTION__<<"): w = transient_for"<<endl;
-#endif // DEBUG
             break;
         }
     }
-	
-    if (transient_for != 0) {
-        transient_for->m_client->transients.push_back(m_win);
-        // make sure we only have on instance of this
-        transient_for->m_client->transients.unique(); 
-        m_win->stuck = transient_for->stuck;
-    }
 
+    if (transientFor() != 0) {
+        // we need to add ourself to the right client in
+        // the transientFor() window so we search client
+        WinClient *client = transientFor()->findClient(win);
+        assert(client != 0);
+        client->transientList().push_back(m_win);
+        // make sure we only have on instance of this
+        client->transientList().unique(); 
+        if (transientFor()->isStuck())
+            m_win->stick();       
+    }
 }
 
 
