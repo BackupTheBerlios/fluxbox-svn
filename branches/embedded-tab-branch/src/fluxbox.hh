@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.hh,v 1.44.2.2 2003/04/07 20:11:29 fluxgen Exp $
+// $Id: fluxbox.hh,v 1.44.2.3 2003/04/09 09:10:33 fluxgen Exp $
 
 #ifndef	 FLUXBOX_HH
 #define	 FLUXBOX_HH
@@ -65,7 +65,6 @@
 
 class AtomHandler;
 class FluxboxWindow;
-class Tab;
 
 /**
 	main class for the window manager.
@@ -81,9 +80,7 @@ public:
 	
     static Fluxbox *instance() { return singleton; }
 	
-    inline bool useTabs() { return *m_rc_tabs; }
     inline bool useIconBar() { return *m_rc_iconbar; }
-    inline void saveTabs(bool value) { *m_rc_tabs = value; }
     inline void saveIconBar(bool value) { m_rc_iconbar = value; }
 #ifdef HAVE_GETPID
     inline Atom getFluxboxPidAtom() const { return fluxbox_pid; }
@@ -99,8 +96,6 @@ public:
     inline const Time &getDoubleClickInterval() const { return resource.double_click_interval; }
     inline const Time &getLastTime() const { return last_time; }
 
-    Tab *searchTab(Window);
-	
     /// obsolete
     enum Titlebar{SHADE=0, MINIMIZE, MAXIMIZE, CLOSE, STICK, MENU, EMPTY};		
 
@@ -156,15 +151,12 @@ public:
     void saveTitlebarFilename(const char *);
     void saveSlitlistFilename(const char *val) { m_rc_slitlistfile = (val == 0 ? "" : val); }
     void saveWindowSearch(Window, FluxboxWindow *);
-    void saveTabSearch(Window, Tab *);
     void saveGroupSearch(Window, FluxboxWindow *);	
     void save_rc();
     void removeWindowSearch(Window);
-    void removeTabSearch(Window);
     void removeGroupSearch(Window);
     void restart(const char * = 0);
     void reconfigure();
-    void reconfigureTabs();
     void rereadMenu();
     void checkMenu();
 	
@@ -236,8 +228,6 @@ private:
 	
     std::map<Window, FluxboxWindow *> windowSearch;
     std::map<Window, FluxboxWindow *> groupSearch;
-    typedef std::map<Window, Tab *> TabList;
-    TabList tabSearch;
 	
     std::list<MenuTimestamp *> menuTimestamps;
     typedef std::list<BScreen *> ScreenList;

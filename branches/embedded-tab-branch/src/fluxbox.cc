@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: fluxbox.cc,v 1.104.2.3 2003/04/07 20:22:19 fluxgen Exp $
+// $Id: fluxbox.cc,v 1.104.2.4 2003/04/09 09:11:56 fluxgen Exp $
 
 
 #include "fluxbox.hh"
@@ -762,12 +762,10 @@ void Fluxbox::handleEvent(XEvent * const e) {
     case Expose:
         {
             FluxboxWindow *win = (FluxboxWindow *) 0;
-            Tab *tab = 0;
 			
             if ((win = searchWindow(e->xexpose.window)))
                 win->exposeEvent(e->xexpose);
-            else if ((tab = searchTab(e->xexpose.window)))
-                tab->exposeEvent(&e->xexpose);
+
         }
         break;
     case KeyPress:
@@ -816,14 +814,11 @@ void Fluxbox::handleEvent(XEvent * const e) {
 void Fluxbox::handleButtonEvent(XButtonEvent &be) {
     switch (be.type) {
     case ButtonPress:
-    {
-        last_time = be.time;
+        {
+            last_time = be.time;
 
-        Tab *tab = 0; 
 
-        if ((tab = searchTab(be.window))) {
-            tab->buttonPressEvent(&be);
-        } else {
+
             ScreenList::iterator it = screenList.begin();
             ScreenList::iterator it_end = screenList.end();
 
@@ -872,8 +867,8 @@ void Fluxbox::handleButtonEvent(XButtonEvent &be) {
                         screen->getWorkspacemenu()->show();
                     }
                 } else if (be.button == 3) { 
-				//calculate placement of workspace menu
-				//and show/hide it				
+                    //calculate placement of workspace menu
+                    //and show/hide it				
                     int mx = be.x_root -
                         (screen->getRootmenu()->width() / 2);
                     int my = be.y_root -
@@ -905,24 +900,21 @@ void Fluxbox::handleButtonEvent(XButtonEvent &be) {
                 } else if (screen->isDesktopWheeling() && be.button == 5) {
                     screen->prevWorkspace(1);
                 }
-            }
+            } // end for
+        
         }
-    }
 
-    break;
+        break;
     case ButtonRelease:
-    {
-        last_time = be.time;
-        FluxboxWindow *win = (FluxboxWindow *) 0;
-        Tab *tab = 0;
+        {
+            last_time = be.time;
+            FluxboxWindow *win = (FluxboxWindow *) 0;
 		
-        if ((win = searchWindow(be.window)))
-            win->buttonReleaseEvent(be);
-        else if ((tab = searchTab(be.window)))
-            tab->buttonReleaseEvent(&be);
+            if ((win = searchWindow(be.window)))
+                win->buttonReleaseEvent(be);
 
-    }
-    break;	
+        }
+        break;	
     default:
 	break;
     }
@@ -1160,28 +1152,16 @@ void Fluxbox::handleKeyEvent(XKeyEvent &ke) {
 
                     break;
                 case Keys::FIRSTTAB:
-                    if (focused_window && focused_window->getTab()) {
-                        Tab *tab = focused_window->getTab();
-                        tab->first()->getWindow()->raise();
-                        tab->first()->getWindow()->setInputFocus();
-                    }
+                    cerr<<"FIRSTTAB TODO!"<<endl;
                     break;
                 case Keys::LASTTAB:
-                    if (focused_window && focused_window->getTab()) {
-                        Tab *tab = focused_window->getTab();
-                        tab->last()->getWindow()->raise();
-                        tab->last()->getWindow()->setInputFocus();
-                    }
+                    cerr<<"LASTTAB TODO!"<<endl;
                     break;
                 case Keys::MOVETABPREV:
-                    if (focused_window && focused_window->getTab()) {
-                        focused_window->getTab()->movePrev();
-                    }
+                    cerr<<"MOVETABPREV TODO!"<<endl;
                     break;
                 case Keys::MOVETABNEXT:
-                    if (focused_window && focused_window->getTab()) {
-                        focused_window->getTab()->moveNext();
-                    }
+                    cerr<<"MOVETABNEXT TODO!"<<endl;
                     break;
                 case Keys::ATTACHLAST:
                     //!! just attach last window to focused window
@@ -1274,9 +1254,6 @@ void Fluxbox::doWindowAction(Keys::KeyAction action, const int param) {
     if (!focused_window)
         return;
 
-    unsigned int t_placement = focused_window->getScreen().getTabPlacement();
-    unsigned int t_alignment = focused_window->getScreen().getTabAlignment();
-	
     switch (action) {
     case Keys::ICONIFY:
         focused_window->iconify();
@@ -1304,8 +1281,6 @@ void Fluxbox::doWindowAction(Keys::KeyAction action, const int param) {
         break;
     case Keys::SHADE:		
         focused_window->shade(); // this has to be done in THIS order
-        if (focused_window->hasTab())
-            focused_window->getTab()->shade();
         break;
     case Keys::MAXIMIZE:
         focused_window->maximize();
@@ -1367,59 +1342,28 @@ void Fluxbox::doWindowAction(Keys::KeyAction action, const int param) {
                 focused_window->getXFrame(), focused_window->getYFrame(),
                 focused_window->getWidth()+10, focused_window->getHeight());
 
-
-        if (focused_window->hasTab() &&
-            (t_placement == Tab::PTOP || t_placement == Tab::PBOTTOM)) {
-            if (t_alignment == Tab::ARELATIVE)
-                focused_window->getTab()->calcIncrease();
-            if (t_alignment != Tab::PLEFT)
-                focused_window->getTab()->setPosition();
-        }
         break;								
     case Keys::VERTINC:
             focused_window->moveResize(
                 focused_window->getXFrame(), focused_window->getYFrame(),
                 focused_window->getWidth(), focused_window->getHeight()+10);
-
-        if (focused_window->hasTab() &&
-            (t_placement == Tab::PLEFT || t_placement == Tab::PRIGHT)) {
-            if (t_alignment == Tab::ARELATIVE)
-                focused_window->getTab()->calcIncrease();
-            if (t_alignment != Tab::PRIGHT)
-                focused_window->getTab()->setPosition();
-        }
         break;
     case Keys::HORIZDEC:				
         focused_window->moveResize(
                 focused_window->getXFrame(), focused_window->getYFrame(),
                 focused_window->getWidth()-10, focused_window->getHeight());
-
-        if (focused_window->hasTab() &&
-            (t_placement == Tab::PTOP || t_placement == Tab::PBOTTOM)) {
-            if (t_alignment == Tab::ARELATIVE)
-                focused_window->getTab()->calcIncrease();
-            if (t_alignment != Tab::PLEFT)
-                focused_window->getTab()->setPosition();
-        }
         break;								
     case Keys::VERTDEC:
         focused_window->moveResize(
                 focused_window->getXFrame(), focused_window->getYFrame(),
                 focused_window->getWidth(), focused_window->getHeight()-10);
 
-        if (focused_window->hasTab() &&
-            (t_placement == Tab::PLEFT || t_placement == Tab::PRIGHT)) {
-            if (t_alignment == Tab::ARELATIVE)
-                focused_window->getTab()->calcIncrease();
-            if (t_alignment != Tab::PRIGHT)
-                focused_window->getTab()->setPosition();
-        }
         break;
     case Keys::TOGGLEDECOR:
         focused_window->toggleDecoration();
         break;
     case Keys::TOGGLETAB:
-        focused_window->setTab(!focused_window->hasTab());
+        cerr<<"TOGGLETAB TODO!"<<endl;
         break;
     default: //do nothing
         break;							
@@ -1580,7 +1524,7 @@ void Fluxbox::attachSignals(FluxboxWindow &win) {
 }
 
 BScreen *Fluxbox::searchScreen(Window window) {
-    BScreen *screen = (BScreen *) 0;
+    BScreen *screen = 0;
     ScreenList::iterator it = screenList.begin();
     ScreenList::iterator it_end = screenList.end();
 
@@ -1593,7 +1537,7 @@ BScreen *Fluxbox::searchScreen(Window window) {
         }
     }
 
-    return (BScreen *) 0;
+    return 0;
 }
 
 
@@ -1608,10 +1552,6 @@ FluxboxWindow *Fluxbox::searchGroup(Window window, FluxboxWindow *win) {
     return it == groupSearch.end() ? 0 : it->second;
 }
 
-Tab *Fluxbox::searchTab(Window window) {
-    std::map<Window, Tab *>::iterator it = tabSearch.find(window);
-    return it == tabSearch.end() ? 0 : it->second;
-}
 
 void Fluxbox::saveWindowSearch(Window window, FluxboxWindow *data) {
     windowSearch[window] = data;
@@ -1622,9 +1562,6 @@ void Fluxbox::saveGroupSearch(Window window, FluxboxWindow *data) {
     groupSearch[window] = data;
 }
 
-void Fluxbox::saveTabSearch(Window window, Tab *data) {
-    tabSearch[window] = data;
-}
 
 void Fluxbox::removeWindowSearch(Window window) {
     windowSearch.erase(window);
@@ -1635,9 +1572,6 @@ void Fluxbox::removeGroupSearch(Window window) {
     groupSearch.erase(window);
 }
 
-void Fluxbox::removeTabSearch(Window window) {
-    tabSearch.erase(window);
-}
 
 void Fluxbox::restart(const char *prog) {
     shutdown();
@@ -2113,16 +2047,7 @@ void Fluxbox::load_rc(BScreen *screen) {
     if (screen->getToolbarWidthPercent() <= 0 || 
         screen->getToolbarWidthPercent() > 100)
         screen->saveToolbarWidthPercent(66);
-    
-    if (screen->getTabWidth()>512)
-        screen->saveTabWidth(512);
-    else if (screen->getTabWidth()<0)
-        screen->saveTabWidth(64);
-	
-    if (screen->getTabHeight()>512)
-        screen->saveTabHeight(512);
-    else if (screen->getTabHeight()<0)
-        screen->saveTabHeight(5);
+
 }
 
 void Fluxbox::loadRootCommand(BScreen *screen)	{
@@ -2194,34 +2119,9 @@ void Fluxbox::real_reconfigure() {
     //reconfigure keys
     key->reconfigure(StringUtil::expandFilename(*m_rc_keyfile).c_str());
 
-    //reconfigure tabs
-    reconfigureTabs();
 
 }
 
-/**
- Reconfigure all tabs size and increase steps
-*/
-void Fluxbox::reconfigureTabs() {
-    //tab reconfiguring
-    TabList::iterator it = tabSearch.begin();
-    TabList::iterator it_end = tabSearch.end();
-    //setting all to unconfigured
-    for (; it != it_end; ++it) {
-        it->second->setConfigured(false);
-    }
-    it = tabSearch.begin(); // resetting list and start configure tabs
-    //reconfiguring
-    for (; it != it_end; ++it) {
-        Tab *tab = it->second;
-        if (!tab->configured()) {
-            tab->setConfigured(true);
-            tab->resizeGroup(); 
-            tab->calcIncrease();
-            tab->setPosition();
-        }
-    }
-}
 
 void Fluxbox::checkMenu() {
     Bool reread = False;
