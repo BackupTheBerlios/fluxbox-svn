@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118.2.6 2003/04/12 21:08:48 fluxgen Exp $
+// $Id: Screen.cc,v 1.118.2.7 2003/04/13 12:21:11 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -1242,6 +1242,8 @@ void BScreen::setupWindowActions(FluxboxWindow &win) {
         } //end for i
         dir = &Fluxbox::instance()->getTitlebarRight();
     } // end for c
+
+    frame.reconfigure();
 
     // setup titlebar
     frame.setOnClickTitlebar(raise_and_focus_cmd, 1, false, true); // on press with button 1
