@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Window.hh,v 1.53.2.1 2003/04/07 10:00:55 fluxgen Exp $
+// $Id: Window.hh,v 1.53.2.2 2003/04/09 09:01:07 fluxgen Exp $
 
 #ifndef	 WINDOW_HH
 #define	 WINDOW_HH
@@ -50,7 +50,6 @@
 #define PropMwmHintsElements	3
 
 class WinClient;
-class Tab;
 class FbWinFrameTheme;
 class BScreen;
 
@@ -99,6 +98,8 @@ public:
         MwmDecorMaximize    = (1l << 6)  /// maximize
     };
 
+    typedef std::list<WinClient *> ClientList;
+
     /// create a window from a client
     FluxboxWindow(WinClient &client, BScreen &scr,
                   FbWinFrameTheme &tm,
@@ -112,10 +113,14 @@ public:
                   FbTk::XLayer &layer);
     virtual ~FluxboxWindow();
 
-
+    /// attach client to our client list and remove it from old window
     void attachClient(WinClient &client);
+    /// detach client (remove it from list) and create a new window for it 
     bool detachClient(WinClient &client);
+    /// remove client from client list
     bool removeClient(WinClient &client);
+    /// set new current client and raise it
+    void setCurrentClient(WinClient &client);
     WinClient *findClient(Window win);
     void nextClient();
     void prevClient();
@@ -125,7 +130,6 @@ public:
     bool validateClient();
     bool setInputFocus();
     void raiseAndFocus() { raise(); setInputFocus(); }
-    void setTab(bool flag);
     void setFocusFlag(bool flag);
     // map this window
     void show();
@@ -219,13 +223,12 @@ public:
     inline bool isClosable() const { return functions.close; }
     inline bool isStuck() const { return stuck; }
     inline bool hasTitlebar() const { return decorations.titlebar; }
-    inline bool hasTab() const { return (tab!=0 ? true : false); }
     inline bool isMoving() const { return moving; }
     inline bool isResizing() const { return resizing; }
     bool isGroupable() const;
     inline int numClients() const { return m_clientlist.size(); }
-    inline std::list<WinClient *> &clientList() { return m_clientlist; }
-    inline const std::list<WinClient *> &clientList() const { return m_clientlist; }
+    inline ClientList &clientList() { return m_clientlist; }
+    inline const ClientList &clientList() const { return m_clientlist; }
     inline WinClient &winClient() { return *m_client; }
     inline const WinClient &winClient() const { return *m_client; }
 
@@ -234,9 +237,6 @@ public:
 
     inline const FbTk::XLayerItem &getLayerItem() const { return m_layeritem; }
     inline FbTk::XLayerItem &getLayerItem() { return m_layeritem; }
-
-    inline const Tab *getTab() const { return tab; }
-    inline Tab *getTab() { return tab; }
 
     const std::list<FluxboxWindow *> &getTransients() const;
     std::list<FluxboxWindow *> &getTransients();
@@ -376,7 +376,7 @@ private:
     unsigned long current_state;
 
     Decoration old_decoration;
-    typedef std::list<WinClient *> ClientList;
+
     ClientList m_clientlist;
     WinClient *m_client;
     // just temporary solution
@@ -391,11 +391,6 @@ private:
         bool resize, move, iconify, maximize, close;
     } functions;
 	
-
-    Tab *tab;
-    friend class Tab; //TODO: Don't like long distant friendship
-	
-    
     int frame_resize_x, frame_resize_w;
     int frame_resize_y, frame_resize_h;
     int m_old_pos_x, m_old_pos_y; ///< old position so we can restore from maximized
