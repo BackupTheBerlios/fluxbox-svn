@@ -22,7 +22,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: Screen.cc,v 1.118.2.1 2003/04/07 10:37:12 fluxgen Exp $
+// $Id: Screen.cc,v 1.118.2.2 2003/04/07 20:03:53 fluxgen Exp $
 
 
 #include "Screen.hh"
@@ -1366,7 +1366,8 @@ void BScreen::reassociateGroup(FluxboxWindow *w, unsigned int wkspc_id, bool ign
 }
 
 void BScreen::reassociateWindow(FluxboxWindow *w, unsigned int wkspc_id, bool ignore_sticky) {
-    if (! w) return;
+    if (w == 0)
+        return;
 
     if (wkspc_id >= getCount()) {
         wkspc_id = current_workspace->workspaceID();
@@ -1381,10 +1382,10 @@ void BScreen::reassociateWindow(FluxboxWindow *w, unsigned int wkspc_id, bool ig
 
     if (w->isIconic()) {
         removeIcon(w);
-        getWorkspace(wkspc_id)->addWindow(w);
+        getWorkspace(wkspc_id)->addWindow(*w);
     } else if (ignore_sticky || ! w->isStuck()) {
         getWorkspace(w->getWorkspaceNumber())->removeWindow(w);
-        getWorkspace(wkspc_id)->addWindow(w);
+        getWorkspace(wkspc_id)->addWindow(*w);
     }
 }
 
