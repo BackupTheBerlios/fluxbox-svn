@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: FbWinFrame.cc,v 1.14.2.4 2003/04/13 12:19:54 fluxgen Exp $
+// $Id: FbWinFrame.cc,v 1.14.2.5 2003/04/13 16:47:16 fluxgen Exp $
 
 #include "FbWinFrame.hh"
 #include "ImageControl.hh"
@@ -274,6 +274,8 @@ void FbWinFrame::setClientWindow(Window win) {
     XSync(display, False);
     XReparentWindow(display, win, m_clientarea.window(), 0, 0);
     XSync(display, True); // discard unmap notify event
+    // redirected events from client window 
+    XSelectInput(display, m_clientarea.window(), SubstructureRedirectMask);
 
     XFlush(display);
 
