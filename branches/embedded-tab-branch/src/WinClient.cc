@@ -19,7 +19,7 @@
 // FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 // DEALINGS IN THE SOFTWARE.
 
-// $Id: WinClient.cc,v 1.1.2.4 2003/04/11 13:33:18 fluxgen Exp $
+// $Id: WinClient.cc,v 1.1.2.5 2003/04/12 13:29:45 fluxgen Exp $
 
 #include "WinClient.hh"
 
@@ -29,6 +29,8 @@
 #include "i18n.hh"
 
 #include <iostream>
+#include <algorithm>
+#include <iterator>
 using namespace std;
 
 WinClient::WinClient(Window win, FluxboxWindow &fbwin):FbTk::FbWindow(win),
@@ -53,7 +55,7 @@ WinClient::WinClient(Window win, FluxboxWindow &fbwin):FbTk::FbWindow(win),
 
 WinClient::~WinClient() {
 #ifdef DEBUG
-    cerr<<__FILE__<<"(~"<<__FUNCTION__<<")"<<endl;
+    cerr<<__FILE__<<"(~"<<__FUNCTION__<<")[this="<<this<<"]"<<endl;
 #endif // DEBUG
 
     m_diesig.notify();
@@ -82,9 +84,15 @@ WinClient::~WinClient() {
     }
 	
     while (!transients.empty()) {
-        WinClient *client = transients.back()->findClient(window());
-        if (client != 0)
-            client->transient_for = 0;
+        FluxboxWindow::ClientList::iterator it = 
+            transients.back()->clientList().begin();
+        FluxboxWindow::ClientList::iterator it_end = 
+            transients.back()->clientList().end();
+        for (; it != it_end; ++it) {
+            if ((*it)->transientFor() == m_win)
+                (*it)->transient_for = 0;
+        }
+
         transients.pop_back();
     }
 	
