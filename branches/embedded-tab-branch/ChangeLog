@@ -1,5 +1,24 @@
 (Format: Year/Month/Day)
 Changes for 0.9.1:
+*03/04/11:
+   * Icon list updates when window state changes and notifies
+     observer fluxbox::update
+     fluxbox.cc
+   * Reassociation of window when it changes to sticky is 
+     done in fluxbox::update now
+     fluxbox.cc
+   * Fixed transient bug
+     WinClient.cc, Window.cc, fluxbox.cc
+   * Added TextButton.hh/cc
+   * Fixed label buttons in FbWinFrame for multiple clients
+     FbWinFrame.hh/cc, Window.hh/cc
+   * Added Next/Prev Client menu items to window menu
+     Screen.cc
+*03/04/09:
+   * Fixed Client menu
+     Workspace.cc
+   * Removed tab resources and old tab code
+     Tab.hh/cc, Screen.hh/cc, fluxbox.hh/cc, Window.hh/cc, Workspace.cc
 *03/04/07:
    * Moved client specific stuff from FluxboxWindow to WinClient
      Window.hh/cc, fluxbox.cc, Screen.cc/hh
