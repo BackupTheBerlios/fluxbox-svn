@@ -1,0 +1,58 @@
+News in 0.9.4:
+    * Keyboard navigation in menus
+       * Keys:
+         Up/Down: select menu item
+         Left/Right: go in/out from sub menus
+         Escape: close menu and return focus to windows
+         Enter: run/execute/toggle menu item
+      To set input focus on the menu you either click on the title bar
+      or bring it up with key bindings
+    * New action strings
+      * ArrangeWindows 
+   	    This will arrange the windows on the current desktop
+      * ShowDesktop
+	    This will iconify all windows on the current desktop
+    * The same action strings that are in keys file can 
+      now be used in the menu
+      example:
+      [ArrangeWindows] (arrange windows)
+    * New theme items
+       * toolbar.button.borderWidth: <integer>
+       * toolbar.borderWidth: <integer>
+       * toolbar.bevelWidth: <integer>
+       * toolbar.borderColor: <color>
+       * slit.borderWidth: <integer>
+       * slit.bevelWidth: <integer>
+       * slit.borderColor: <color>
+    * [startup] option in remember file
+      Can now add entries to apps file like:
+         [startup] {xterm}
+      Then "xterm" will be launched on fluxbox startup. 
+      Can also give a screen option:
+         [startup] (screen=1) {xterm}
+      will start it on screen 1 rather than the default 0.
+    * Rounded corners on menu, windows and toolbar
+      Theme items:
+       * menu.roundCorners: <shape item>
+       * toolbar.shaped: <boolean>
+       * window.roundCorners: <shape item>
+      Shape item can be: TopLeft TopRight BottomLeft and/or BottomRight
+      example: menu.roundCorners: TopRight BottomLeft
+    * The current style is now marked in the style menu
+    * Compile time option for toolbar
+      --disable-toolbar
+      --enable-toolbar (default)
+    * Emacs style key bindings in fbrun
+	* Tab completion in fbrun
+    * Group persistence over a restart
+    * Maximization stop on slit and toolbar (check Maximize Over menu items)
+    * Support for _NET_WM_STRUT
+    * Regular expression support for remember
+Bug fixes: 
+    * Toggle maximize vertical/horizontal
+    * Slit/Toolbar auto hide bug
+    * Button alignment bug in title bar
+    * Trailing whitespace in group file resource
+    * Group cycling
+
+See ChangeLog for more details
