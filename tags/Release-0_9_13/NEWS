@@ -1,0 +1,46 @@
+News in 0.9.13: 
+
+    * Massive speed- and memoryimprovements
+    * Added new Buttons for the Titlebar:
+        - Shade - just like the "Stick"-button
+          Styleresources:
+            window.shade.pixmap, window.shade.unfocus.pixmap, window.shade.pressed.pixmap
+            window.unshade.pixmap, window.unshade.unfocus.pixmap, window.unshade.pressed.pixmap
+            etc.
+        - MenuIcon - click on it provides the windowmenu, if the app
+          contains a pixmap (gvim, konqueror etc etc) the pixmap is displayed, a
+          little menu otherwise. 
+          Styleresources:
+            window.menuicon.pixmap, window.menuicon.unfocus.pixmap
+            window.menuicon.pressed.pixmap
+            etc.
+        Example ~/.fluxbox/init - entry:
+          session.titlebar.left: MenuIcon Stick
+          session.titlebar.right: Shade Minimize Maximize Close
+    * Added more KeyActions to TextBoxes
+        - Control + LeftArrow  - Moves cursor to the left direction, up to next word.
+        - Control + RightArrow - to the right direction.
+        - Control + BackSpace  - Removes everything from the cursor left side, up to next left word.
+        - Control + Delete     - like above but removes to the right direction.
+    * Added some style-resources:
+        - menu.hilite.submenu.pixmap:    <Pixmap>
+        - menu.hilite.selected.pixmap:   <Pixmap>
+        - menu.hilite.unselected.pixmap: <Pixmap>
+    * Added new IconbarModes:
+        - NoIcons   - all but iconified windows
+        - WorkspaceNoIcons - all but iconified windows on the current Workspace
+    * Added -screen <"all"|int[,int]> :
+       $> fluxbox -screen 0,2      will run fluxbox on 0.0 and 0.2 so
+                                   one can run any other wm on 0.1.
+       $> fluxbox -screen all      default, fluxbox manages all screens
+    * fluxbox-generate_menu now can add pixmaps to the menuentries
+
+Bug fixes:
+    * Mutiple keyboard layout (#1160244, #1099704, #1094107)
+    * ArrangeWindows (#1086673)
+    * Inconsistent behavior of Java dialogs (#1157361)
+    * fbrun segfault (#1188690)
+    * ShowDesktop (#1020399)
+    * 64bit issues (#1107213, #1105041)
+
+See ChangeLog for more details
