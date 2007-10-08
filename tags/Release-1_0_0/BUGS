@@ -1,0 +1,9 @@
+Known bugs and missing features that will be fixed in future version:
+
+BUGS:
+
+  * "My window (e.g. mplayer/xmms) stops updating with non-opaque
+    window moving.
+    - Current implementation of outline moving does this, it's not a bug.
+
+
