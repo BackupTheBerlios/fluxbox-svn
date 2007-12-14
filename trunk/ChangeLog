@@ -1,6 +1,13 @@
  (Format: Year/Month/Day)
 Changes for 1.0.1:
 *07/12/13:
+   * SVN IS DEAD. WE NOW USE GIT.
+     - to get the latest development sources of fluxbox, run the following
+       command and compile as usual:
+       git clone git://git.fluxbox.org/fluxbox.git
+       cd fluxbox
+       ./autogen.sh && ./configure && make install
+
    * Fix configure option --with-style (thanks Slava Semushin)
      configure.in Makefile.am
    * Close menus only when they lose focus (Mark)

@@ -3,6 +3,13 @@ AC_INIT(src/main.cc)
 AC_PREREQ(2.52)
 AM_INIT_AUTOMAKE(fluxbox,svn, no-define)
 
+AC_MSG_ERROR([
+We have switched to git for fluxbox development. Svn is no longer being
+used. To get the latest development sources, use the following commands:
+git clone git://git.fluxbox.org/fluxbox.git
+cd fluxbox
+./autogen.sh && ./configure && ./make install])
+
 dnl Determine default prefix
 test x$prefix = "xNONE" && prefix="$ac_default_prefix"
 
